@@ -1,0 +1,30 @@
+.MainMenu {
+    background-color: #ca72aa;
+    height: 85px;
+}
+
+a.menuTitle {
+    color: #fff;
+    letter-spacing: 1px;
+    font-size: 25px;
+    font-family: serif;
+}
+
+.menuList {
+    display: flex;
+    justify-content: end;
+}
+
+.navbarMenu a {
+    color: #fff;
+    font-size: 20px;
+    letter-spacing: 1px;
+    font-weight: 500;
+    font-family: serif;
+}
+
+@media screen and (max-width: 768px) {
+    .navbarMenu a {
+        color: #1b0536; 
+    }
+}

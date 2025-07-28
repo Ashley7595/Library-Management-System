@@ -1,0 +1,11 @@
+.contact {
+    margin-top: 5%;
+}
+
+form.contactForm {
+    box-shadow: 5px 5px 5px 5px #9E9E9E;
+}
+h2.commonTitle {
+    font-family: serif;
+    letter-spacing: 1px;
+}

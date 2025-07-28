@@ -1,0 +1,24 @@
+h5.subTitle {
+    letter-spacing: 1px;
+    font-family: monospace;
+}
+
+h4.subHeading {
+    font-family: math;
+    letter-spacing: 1px;
+}
+
+p.gridAbout {
+    font-family: monospace;
+}
+
+img.gridImg {
+    width: 100%;
+    height: 200px;
+    object-fit: contain;
+}
+
+h2.commonTitle {
+    font-family: serif;
+    letter-spacing: 1px;
+}

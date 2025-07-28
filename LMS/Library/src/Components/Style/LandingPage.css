@@ -1,0 +1,98 @@
+
+.Landing {
+    background-image: url('../../assets/landing-image.jpg');
+    min-height: 100vh;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+.landingContent {
+    color: #fff;
+}
+
+.landingTitle {
+    font-family: serif;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.landingPara {
+    font-size: 18px;
+    font-family: sans-serif;
+    font-style: italic;
+    letter-spacing: 2px;
+}
+
+.landingButtons {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+}
+
+.loginDropdownBtn,
+.registerBtn {
+    padding: 10px 25px;
+    min-width: 150px;
+    font-size: 18px;
+    border: none;
+    border-radius: 25px;
+    font-family: 'Arial';
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+    letter-spacing: 1px;
+}
+
+.loginDropdownBtn {
+    background-color: #111881d1;
+    color: white;
+}
+
+.loginDropdownBtn:hover {
+    background-color: #2a3260;
+}
+
+.Landingdropdown .dropdown-item {
+    display: flex;
+    justify-content: center;
+    letter-spacing: 1px;
+    font-size: 18px;
+    color: black;
+    font-family: math;
+    text-decoration: none;
+    padding: 10px 0;
+}
+
+.Landingdropdown .dropdown-item:hover {
+    color: #111881;
+    background-color: rgba(240, 236, 236, 0.85);
+    backdrop-filter: blur(4px);
+}
+
+.registerBtn {
+    background-color: #0d5a7c;
+    color: white;
+}
+
+.registerBtn:hover {
+    background-color: #0b4c6a;
+}
+
+.landingList {
+    list-style-type: none;
+    font-size: 18px;
+    font-family: sans-serif;
+    font-style: italic;
+    letter-spacing: 1px;
+    text-align: center;
+}
+
+.landingList li {
+    line-height: 2rem;
+}
+
+.imgLanding {
+    width: 100%;
+    height: 300px;
+    object-fit: cover;
+}
