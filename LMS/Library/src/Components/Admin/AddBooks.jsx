@@ -41,35 +41,43 @@ function AddBooks() {
     image: "",
   });
 
-  const handleInput = (e) => {
-    const { name, value } = e.target;
+const handleInput = (e) => {
+  const { name, value } = e.target;
 
-    if (name === "year") {
-      const yearRegex = /^\d{4}$/;
-      const currentYear = new Date().getFullYear();
+  let filteredValue = value;
 
-      if (!yearRegex.test(value)) {
-        setErrors((prev) => ({
-          ...prev,
-          year: "Year must be a 4-digit number",
-        }));
-      } else if (parseInt(value) < 1000 || parseInt(value) > currentYear) {
-        setErrors((prev) => ({
-          ...prev,
-          year: `Year must be between 1000 and ${currentYear}`,
-        }));
-      } else {
-        setErrors((prev) => ({ ...prev, year: "" }));
-      }
+  if (["title", "author", "genre", "language"].includes(name)) {
+    filteredValue = value.replace(/[^A-Za-z\s]/g, '');
+    if (filteredValue.trim() === "") {
+      setErrors((prev) => ({ ...prev, [name]: "This field is required" }));
     } else {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  }
+
+  else if (name === "year") {
+    filteredValue = value.replace(/[^\d]/g, '').slice(0, 4); 
+    const currentYear = new Date().getFullYear();
+    const yearInt = parseInt(filteredValue, 10);
+
+    if (!/^\d{4}$/.test(filteredValue)) {
       setErrors((prev) => ({
         ...prev,
-        [name]: value.trim() === "" ? "This field is required" : "",
+        year: "Year must be a 4-digit number",
       }));
+    } else if (yearInt < 1000 || yearInt > currentYear) {
+      setErrors((prev) => ({
+        ...prev,
+        year: `Year must be between 1000 and ${currentYear}`,
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, year: "" }));
     }
+  }
 
-    setUsers((prev) => ({ ...prev, [name]: value }));
-  };
+  setUsers((prev) => ({ ...prev, [name]: filteredValue }));
+};
+
 
   const handleFile = (e) => {
     const file = e.target.files[0];

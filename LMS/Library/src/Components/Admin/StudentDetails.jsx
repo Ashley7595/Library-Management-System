@@ -34,6 +34,7 @@ function StudentDetails()  {
 
     return (
         <Box
+            mt={5}
             p={4}
             display="flex"
             justifyContent="center"
@@ -42,6 +43,7 @@ function StudentDetails()  {
             bgcolor={theme.palette.background.default}
         >
             <Box
+             mt={5}
                 display="flex"
                 flexDirection={{ xs: "column", md: "row" }}
                 gap={4}

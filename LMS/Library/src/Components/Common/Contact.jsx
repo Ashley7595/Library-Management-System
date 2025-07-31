@@ -34,15 +34,47 @@ function Contact() {
 
     const handleInput = (e) => {
         const { name, value, type, checked } = e.target;
-        const val = type === 'checkbox' ? checked : value;
+        let val = type === "checkbox" ? checked : value;
+
+        if (["fname", "lname"].includes(name)) {
+            val = val.replace(/[^A-Za-z\s]/g, "");
+        }
+
+        if (name === "inquiry") {
+            val = val.replace(/[^A-Za-z0-9\s.,!?'"-]/g, "");
+        }
+
+        if (name === "email") {
+            val = val.replace(/[^a-zA-Z0-9@._+-]/g, "");
+        }
+
+        if (name === "phone") {
+            val = val.replace(/[^\d]/g, "").slice(0, 10); 
+        }
 
         setUsers({ ...users, [name]: val });
+
         switch (name) {
             case "fname":
             case "lname":
                 setErrors((prev) => ({
                     ...prev,
-                    [name]: val.trim() === "" ? "This field is required" : ""
+                    [name]: val.trim() === ""
+                        ? "This field is required"
+                        : /^[A-Za-z\s]+$/.test(val)
+                            ? ""
+                            : "Only alphabets allowed",
+                }));
+                break;
+
+            case "inquiry":
+                setErrors((prev) => ({
+                    ...prev,
+                    inquiry: val.trim() === ""
+                        ? "This field is required"
+                        : /[A-Za-z]/.test(val)
+                            ? ""
+                            : "Must contain at least one letter",
                 }));
                 break;
 
@@ -50,7 +82,7 @@ function Contact() {
                 const emailPattern = /^\S+@\S+\.\S+$/;
                 setErrors((prev) => ({
                     ...prev,
-                    email: emailPattern.test(val) ? "" : "Invalid email address"
+                    email: emailPattern.test(val) ? "" : "Invalid email address",
                 }));
                 break;
 
@@ -58,29 +90,32 @@ function Contact() {
                 const phonePattern = /^\d{10}$/;
                 setErrors((prev) => ({
                     ...prev,
-                    phone: phonePattern.test(val) ? "" : "Phone must be 10 digits"
+                    phone: phonePattern.test(val)
+                        ? ""
+                        : "Phone number must be 10 digits",
                 }));
                 break;
 
             case "subject":
-            case "inquiry":
                 setErrors((prev) => ({
                     ...prev,
-                    [name]: val.trim() === "" ? "This field is required" : ""
+                    subject: val.trim() === ""
+                        ? "This field is required"
+                        : "",
                 }));
                 break;
 
             case "contactMethod":
                 setErrors((prev) => ({
                     ...prev,
-                    contactMethod: val ? "" : "Select a contact method"
+                    contactMethod: val ? "" : "Select a contact method",
                 }));
                 break;
 
             case "consent":
                 setErrors((prev) => ({
                     ...prev,
-                    consent: val ? "" : "Consent is required"
+                    consent: val ? "" : "Consent is required",
                 }));
                 break;
 
@@ -89,6 +124,8 @@ function Contact() {
         }
     };
 
+
+
     const handleFile = (e) => {
         setUsers({ ...users, image: e.target.files[0] })
     }
@@ -96,17 +133,36 @@ function Contact() {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        for (let key in users) {
-            if (
-                (key !== "image" && users[key] === "") ||
-                errors[key]
-            ) {
-                alert("Please fill in all fields before submitting.");
-                return;
-            }
+        const formErrors = {};
+
+        if (!users.fname.trim()) formErrors.fname = "First name is required";
+        if (!users.lname.trim()) formErrors.lname = "Last name is required";
+
+        const emailPattern = /^\S+@\S+\.\S+$/;
+        if (!users.email.trim()) formErrors.email = "Email is required";
+        else if (!emailPattern.test(users.email)) formErrors.email = "Invalid email address";
+
+        const phonePattern = /^\d{10}$/;
+        if (!users.phone.trim()) formErrors.phone = "Phone number is required";
+        else if (!phonePattern.test(users.phone)) formErrors.phone = "Phone must be 10 digits";
+
+        if (!users.subject.trim()) formErrors.subject = "Subject is required";
+
+        if (!users.inquiry.trim()) formErrors.inquiry = "Inquiry is required";
+        else if (!/[A-Za-z]/.test(users.inquiry)) formErrors.inquiry = "Must contain at least one letter";
+
+        if (!users.contactMethod) formErrors.contactMethod = "Select a contact method";
+
+        if (!users.consent) formErrors.consent = "You must accept the consent checkbox";
+
+        setErrors(formErrors);
+
+        if (Object.keys(formErrors).length > 0) {
+            toast.error("Please fix the errors in the form");
+            return;
         }
 
-        const formData = new FormData()
+        const formData = new FormData();
         formData.append("fname", users.fname);
         formData.append("lname", users.lname);
         formData.append("email", users.email);
@@ -118,7 +174,6 @@ function Contact() {
         formData.append("consent", users.consent);
 
         axios.post("http://localhost:5001/addComplaints", formData)
-
             .then((result) => {
                 console.log(result);
                 toast.success("Form Submitted Successfully");
@@ -138,25 +193,16 @@ function Contact() {
                     contactMethod: "",
                     consent: false
                 });
-                setErrors({
-                    fname: "",
-                    lname: "",
-                    email: "",
-                    phone: "",
-                    subject: "",
-                    inquiry: "",
-                    image: "",
-                    contactMethod: "",
-                    consent: ""
-                });
-                fileInputRef.current.value = null;
 
+                setErrors({});
+                fileInputRef.current.value = null;
             })
             .catch((error) => {
                 console.log(error);
                 toast.error("Error in Form Submission");
-            })
-    }
+            });
+    };
+
 
     return (
         <>
@@ -218,23 +264,23 @@ function Contact() {
                                     <label className="form-label d-block">*Preferred Contact Method</label>
                                 </div>
                                 <div className="form-check form-check-inline">
-                                    <input className="form-check-input" type="radio" name="contactMethod" value="Email" checked={users.contactMethod === "Email"} onChange={handleInput} />
+                                    <input className="form-check-input visible-radio" type="radio" name="contactMethod" value="Email" checked={users.contactMethod === "Email"} onChange={handleInput} />
                                     <label className="form-check-label">Email</label>
                                 </div>
                                 <div className="form-check form-check-inline">
-                                    <input className="form-check-input" type="radio" name="contactMethod" value="Phone" checked={users.contactMethod === "Phone"} onChange={handleInput} />
+                                    <input className="form-check-input visible-radio" type="radio" name="contactMethod" value="Phone" checked={users.contactMethod === "Phone"} onChange={handleInput} />
                                     <label className="form-check-label">Phone</label>
                                 </div>
                                 <div className="form-check form-check-inline">
-                                    <input className="form-check-input" type="radio" name="contactMethod" value="Either" checked={users.contactMethod === "Either"} onChange={handleInput} />
+                                    <input className="form-check-input visible-radio" type="radio" name="contactMethod" value="Either" checked={users.contactMethod === "Either"} onChange={handleInput} />
                                     <label className="form-check-label">Either</label>
                                 </div>
                                 {errors.contactMethod && <div className="text-danger">{errors.contactMethod}</div>}
                             </div>
 
-                            <div className="col-lg-12 mb-3">
+                            <div className="col-lg-12 mb-3 mt-3 consent-box">
                                 <div className="form-check">
-                                    <input className="form-check-input" type="checkbox" name="consent" checked={users.consent} onChange={handleInput} />
+                                    <input className="form-check-input visible-checkbox" type="checkbox" name="consent" checked={users.consent} onChange={handleInput} />
                                     <label className="form-check-label">I consent to having this website store my submitted information.</label>
                                 </div>
                                 {errors.consent && <div className="text-danger">{errors.consent}</div>}

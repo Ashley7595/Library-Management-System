@@ -21,7 +21,7 @@ function EditBooks() {
   const colors = tokens(theme.palette.mode);
   const navigate = useNavigate();
   const { id } = useParams();
-  
+
   const [imagePreview, setImagePreview] = useState(null);
 
   const [edit, setEdit] = useState({
@@ -64,13 +64,23 @@ function EditBooks() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    let updatedValue = value;
+
+    if (["title", "author", "genre", "language"].includes(name)) {
+      updatedValue = updatedValue.replace(/[^A-Za-z\s]/g, '');
+    }
 
 
-    const error = validateField(name, value);
+    if (name === "year") {
+      updatedValue = updatedValue.replace(/[^\d]/g, '').slice(0, 4);
+    }
 
-    setEdit((prev) => ({ ...prev, [name]: value }));
+    const error = validateField(name, updatedValue);
+
+    setEdit((prev) => ({ ...prev, [name]: updatedValue }));
     setErrors((prev) => ({ ...prev, [name]: error }));
   };
+
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -119,7 +129,7 @@ function EditBooks() {
         hasError = true;
       }
     }
-   
+
 
     setErrors(newErrors);
 

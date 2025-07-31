@@ -30,7 +30,8 @@ function EditTeacherProfile() {
     username: '',
     image: null,
   });
-  const [errors, setErrors] = useState({ phone: '', dob: '' });
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   useEffect(() => {
     const storedTeacher = localStorage.getItem("teacher");
@@ -53,7 +54,28 @@ function EditTeacherProfile() {
 
   const validateFields = () => {
     let ok = true;
-    const newErrors = { phone: '', dob: '' };
+    const newErrors = {};
+
+    if (!edit.fname.trim()) {
+      newErrors.fname = 'First name is required.';
+      ok = false;
+    }
+
+    if (!edit.lname.trim()) {
+      newErrors.lname = 'Last name is required.';
+      ok = false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!edit.email.trim()) {
+      newErrors.email = 'Email is required.';
+      ok = false;
+    } else if (!emailRegex.test(edit.email)) {
+      newErrors.email = 'Enter a valid email address.';
+      ok = false;
+    }
+
 
     const digits = edit.phone.replace(/[^\d]/g, '');
     if (!/^\d{10}$/.test(digits)) {
@@ -88,7 +110,16 @@ function EditTeacherProfile() {
   };
 
   const handleUpdate = async () => {
-    if (!validateFields()) {
+    const isValid = validateFields();
+    setTouched({
+      fname: true,
+      lname: true,
+      email: true,
+      phone: true,
+      dob: true,
+    });
+
+    if (!isValid) {
       toast.error('Please fix the form errors');
       return;
     }
@@ -115,6 +146,78 @@ function EditTeacherProfile() {
     }
   };
 
+ const handleChange = (id, value) => {
+  let filteredValue = value;
+
+  if (id === 'fname' || id === 'lname') {
+    filteredValue = value.replace(/[^A-Za-z]/g, '');
+  }
+
+  if (id === 'phone') {
+    filteredValue = value.replace(/[^\d]/g, '');
+  }
+
+  setEdit((prev) => ({ ...prev, [id]: filteredValue }));
+  setTouched((prev) => ({ ...prev, [id]: true }));
+
+  const newErrors = { ...errors };
+
+  switch (id) {
+    case 'fname':
+      newErrors.fname = filteredValue.trim() ? '' : 'First name is required.';
+      break;
+
+    case 'lname':
+      newErrors.lname = filteredValue.trim() ? '' : 'Last name is required.';
+      break;
+
+    case 'email':
+      if (!filteredValue.trim()) {
+        newErrors.email = 'Email is required.';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(filteredValue)) {
+        newErrors.email = 'Enter a valid email address.';
+      } else {
+        newErrors.email = '';
+      }
+      break;
+
+    case 'phone':
+      newErrors.phone = /^\d{10}$/.test(filteredValue)
+        ? ''
+        : 'Phone number must be exactly 10 digits.';
+      break;
+
+    case 'dob':
+      if (!filteredValue) {
+        newErrors.dob = 'Date of birth is required.';
+      } else {
+        const d = new Date(filteredValue);
+        const y = d.getFullYear();
+        const today = new Date();
+        let age = today.getFullYear() - y;
+        const hadBirthday =
+          today.getMonth() > d.getMonth() ||
+          (today.getMonth() === d.getMonth() && today.getDate() >= d.getDate());
+        age = hadBirthday ? age : age - 1;
+
+        if (y < 1980 || y > 2025) {
+          newErrors.dob = 'Year must be between 1980 and 2025';
+        } else if (age < 21) {
+          newErrors.dob = 'Minimum age is 21 years';
+        } else {
+          newErrors.dob = '';
+        }
+      }
+      break;
+
+    default:
+      break;
+  }
+
+  setErrors(newErrors);
+};
+
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -122,14 +225,6 @@ function EditTeacherProfile() {
       setImagePreview(URL.createObjectURL(file));
     }
   };
-
-  const fields = [
-    { label: 'First Name', id: 'fname' },
-    { label: 'Last Name', id: 'lname' },
-    { label: 'Email', id: 'email' },
-    { label: 'Phone Number', id: 'phone' },
-    { label: 'Username', id: 'username' },
-  ];
 
   return (
     <>
@@ -147,21 +242,62 @@ function EditTeacherProfile() {
             boxShadow={6}
             bgcolor={theme.palette.mode === 'dark' ? colors.primary[500] : '#fff'}
           >
-            {fields.map(({ label, id, type = 'text' }) => (
-              <FormControl fullWidth margin="normal" key={id}>
-                <InputLabel htmlFor={id}>{label}</InputLabel>
-                <Input
-                  id={id}
-                  name={id}
-                  type={type}
-                  value={edit[id] || ''}
-                  onChange={e => setEdit({ ...edit, [id]: e.target.value })}
-                />
-                {id === 'phone' && errors.phone && (
-                  <Typography color="error" fontSize="12px">{errors.phone}</Typography>
-                )}
-              </FormControl>
-            ))}
+            <FormControl fullWidth margin="normal">
+              <InputLabel htmlFor="fname">First Name</InputLabel>
+              <Input
+                id="fname"
+                value={edit.fname}
+                onChange={(e) => handleChange('fname', e.target.value)}
+              />
+              {touched.fname && errors.fname && (
+                <Typography color="error" fontSize="12px">{errors.fname}</Typography>
+              )}
+            </FormControl>
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel htmlFor="lname">Last Name</InputLabel>
+              <Input
+                id="lname"
+                value={edit.lname}
+                onChange={(e) => handleChange('lname', e.target.value)}
+              />
+              {touched.lname && errors.lname && (
+                <Typography color="error" fontSize="12px">{errors.lname}</Typography>
+              )}
+            </FormControl>
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel htmlFor="email">Email</InputLabel>
+              <Input
+                id="email"
+                value={edit.email}
+                onChange={(e) => handleChange('email', e.target.value)}
+              />
+              {touched.email && errors.email && (
+                <Typography color="error" fontSize="12px">{errors.email}</Typography>
+              )}
+            </FormControl>
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel htmlFor="phone">Phone Number</InputLabel>
+              <Input
+                id="phone"
+                value={edit.phone}
+                onChange={(e) => handleChange('phone', e.target.value)}
+              />
+              {touched.phone && errors.phone && (
+                <Typography color="error" fontSize="12px">{errors.phone}</Typography>
+              )}
+            </FormControl>
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel htmlFor="username">Username</InputLabel>
+              <Input
+                id="username"
+                value={edit.username}
+                onChange={(e) => handleChange('username', e.target.value)}
+              />
+            </FormControl>
 
             <FormControl fullWidth margin="normal">
               <InputLabel htmlFor="dob">DOB</InputLabel>
@@ -169,9 +305,9 @@ function EditTeacherProfile() {
                 id="dob"
                 type="date"
                 value={edit.dob || ''}
-                onChange={e => setEdit({ ...edit, dob: e.target.value })}
+                onChange={(e) => handleChange('dob', e.target.value)}
               />
-              {errors.dob && (
+              {touched.dob && errors.dob && (
                 <Typography color="error" fontSize="12px">{errors.dob}</Typography>
               )}
             </FormControl>

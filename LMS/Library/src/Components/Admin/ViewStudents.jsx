@@ -2,29 +2,25 @@ import {
   Box,
   Button,
   useTheme,
-  Menu,
-  MenuItem,
-  TextField,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { tokens } from "./Theme.js";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext} from "react-router-dom";
 import Header from "./Global/Header";
 import { toast, ToastContainer } from "react-toastify";
-import { useState, useEffect } from "react";
+import { useState, useEffect,useRef } from "react";
 import axios from "axios";
-import FilterAltIcon from "@mui/icons-material/FilterAlt";
+
 
 function ViewStudents() {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [view, setView] = useState([]);
-  const [filteredView, setFilteredView] = useState([]);
-  const [filterType, setFilterType] = useState("");
-  const [filterValue, setFilterValue] = useState("");
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
+  const { searchQuery, setSearchQuery } = useOutletContext();
+  const skipSearchEffect = useRef(false);
+  const clearInputFlag = useRef(false);
   const navigate = useNavigate();
+  const [filteredView, setFilteredView] = useState([]);
 
   const columns = [
     { field: "fname", headerName: "First Name", flex: 1 },
@@ -63,54 +59,48 @@ function ViewStudents() {
       });
   }, []);
 
-  const handleMenuClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
 
-  const handleMenuSelect = (type) => {
-    setFilterType(type);
-    setFilterValue("");
-    setAnchorEl(null);
-  };
+  useEffect(() => {
+  if (skipSearchEffect.current) {
+    skipSearchEffect.current = false;
+    return;
+  }
 
-  const applyFilter = () => {
-    const value = filterValue.toLowerCase().trim();
-    if (!value) {
-      setFilteredView(view);
-      return;
-    }
+  const value = searchQuery.toLowerCase().trim();
 
-    const filtered = view.filter((student) => {
-      switch (filterType) {
-        case "name":
-          return (
-            student.fname?.toLowerCase().includes(value) ||
-            student.lname?.toLowerCase().includes(value)
-          );
-        case "class":
-          return student.studclass?.toLowerCase().includes(value);
-        case "roll":
-          return student.rollNumber?.toLowerCase().includes(value);
-        default:
-          return true;
-      }
-    });
-
-    if (filtered.length === 0) {
-      toast.error(`No results found for "${filterValue}". Showing all students.`);
-      setFilteredView(view);
-    } else {
-      toast.info(`Filtered by ${filterType}: ${filterValue}`);
-      setFilteredView(filtered);
-    }
-  };
-
-  const clearFilter = () => {
+  if (!value) {
     setFilteredView(view);
-    setFilterValue("");
-    setFilterType("");
-    toast.info("Filter cleared");
-  };
+    return;
+  }
+
+  const filtered = view.filter((student) =>
+     student.fname?.toLowerCase().includes(value) ||
+    student.lname?.toLowerCase().includes(value) ||
+    student.studclass?.toLowerCase().includes(value) ||
+    student.rollNumber?.toLowerCase().includes(value)
+  );
+
+  if (filtered.length === 0) {
+    toast.error(`No results found for "${searchQuery}". Showing all students.`);
+    setFilteredView(view);
+    clearInputFlag.current = true;
+  } else {
+    setFilteredView(filtered);
+    toast.success(`Showing results for "${searchQuery}"`);
+    clearInputFlag.current = true;
+  }
+
+  if (clearInputFlag.current) {
+    const timeout = setTimeout(() => {
+      skipSearchEffect.current = true;
+      setSearchQuery('');
+      clearInputFlag.current = false;
+    }, 1000); 
+
+    return () => clearTimeout(timeout);
+  }
+
+}, [searchQuery, view]);
 
   return (
     <>
@@ -125,49 +115,6 @@ function ViewStudents() {
           mb={2}
         >
           <Header title="Students Data" subtitle="Managing the Students Data" />
-
-          <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
-            <Button
-              onClick={handleMenuClick}
-              variant="contained"
-              sx={{
-                backgroundColor: colors.blueAccent[700],
-                color: colors.grey[100],
-              }}
-              endIcon={<FilterAltIcon />}
-            >
-              {filterType ? `Filter: ${filterType}` : "Filter"}
-            </Button>
-
-            <Menu anchorEl={anchorEl} open={open} onClose={() => setAnchorEl(null)}>
-              <MenuItem onClick={() => handleMenuSelect("name")}>By Name</MenuItem>
-              <MenuItem onClick={() => handleMenuSelect("class")}>By Class</MenuItem>
-              <MenuItem onClick={() => handleMenuSelect("roll")}>By Roll Number</MenuItem>
-            </Menu>
-
-            {filterType && (
-              <>
-                <TextField
-                  variant="outlined"
-                  size="small"
-                  label={`Enter ${filterType}`}
-                  value={filterValue}
-                  onChange={(e) => setFilterValue(e.target.value)}
-                />
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={applyFilter}
-                  disabled={!filterValue.trim()}
-                >
-                  Apply
-                </Button>
-                <Button variant="outlined" color="secondary" onClick={clearFilter}>
-                  Clear
-                </Button>
-              </>
-            )}
-          </Box>
         </Box>
 
         {/* Data Table */}

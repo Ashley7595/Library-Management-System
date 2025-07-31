@@ -1,16 +1,20 @@
 import { Box, IconButton, useTheme } from "@mui/material";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { ColorModeContext, tokens } from '../Theme.js';
 import InputBase from "@mui/material/InputBase";
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 
-function TopBar({ onSearchChange }) {
+function TopBar({ searchQuery, onSearchChange }) {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const colorMode = useContext(ColorModeContext);
   const [searchText, setSearchText] = useState('');
+
+  useEffect(() => {
+    setSearchText(searchQuery || '');
+  }, [searchQuery]);
 
   return (
     <Box display="flex" justifyContent="space-between" p={2}>

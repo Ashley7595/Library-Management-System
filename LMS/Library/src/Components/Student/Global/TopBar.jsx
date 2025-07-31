@@ -6,11 +6,16 @@ import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 
-function TopBar({ onSearchChange }) {
+function TopBar({ onSearchChange, searchQuery }) {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const colorMode = useContext(ColorModeContext);
   const [searchText, setSearchText] = useState('');
+
+  const handleSearch = () => {
+    onSearchChange(searchText.trim());  
+    setSearchText('');                  
+  };
 
   return (
     <Box display="flex" justifyContent="space-between" p={2}>
@@ -26,11 +31,11 @@ function TopBar({ onSearchChange }) {
           onChange={(e) => setSearchText(e.target.value)}
           onKeyPress={(e) => {
             if (e.key === 'Enter') {
-              onSearchChange(searchText);
+              handleSearch();
             }
           }}
         />
-        <IconButton type="button" sx={{ p: 1 }} onClick={() => onSearchChange(searchText)}>
+        <IconButton type="button" sx={{ p: 1 }} onClick={handleSearch}>
           <SearchIcon />
         </IconButton>
       </Box>

@@ -24,6 +24,7 @@ import AddBooks from './Components/Admin/AddBooks.jsx';
 import EditBooks from './Components/Admin/EditBooks.jsx';
 import Reports from './Components/Admin/Reports.jsx';
 import ProtectedRouteAdmin from './Components/Admin/ProtectedRoute.jsx';
+import ViewComplaint from "./Components/Admin/ViewComplaint.jsx";
 
 
 import TeacherLogin from './Components/Teacher/Login.jsx';
@@ -77,6 +78,7 @@ createRoot(document.getElementById('root')).render(
         <Route path="AddBooks" element={<AddBooks />} />
         <Route path="EditBooks/:id" element={<EditBooks />} />
         <Route path="Reports" element={<Reports />} />
+        <Route path="ViewComplaint/:id" element={<ViewComplaint />} />
       </Route>
 
 
@@ -96,7 +98,7 @@ createRoot(document.getElementById('root')).render(
         <Route path="StudentInfo/:id" element={<StudentInfo />} />
       </Route>
 
-      {/* ✅ Protected Student Routes */}
+      {/* Student Routes */}
       <Route element={
         <ProtectedRouteStudent>
           <StudentLayout />

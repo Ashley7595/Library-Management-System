@@ -13,21 +13,24 @@ import { useState, useEffect, useRef } from "react";
 import Header from "./Global/Header";
 import LibraryBooksOutlinedIcon from "@mui/icons-material/LibraryBooksOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import LocalLibraryIcon from '@mui/icons-material/LocalLibraryOutlined';
+import LocalLibraryIcon from "@mui/icons-material/LocalLibraryOutlined";
 import StatBox from "./Global/StatBox";
 import axios from "axios";
 import { useOutletContext } from "react-router-dom";
-import { toast, ToastContainer } from 'react-toastify'
+import { toast, ToastContainer } from 'react-toastify';
 
 const API_URL = "http://localhost:5001";
 
 function StudentDashboard() {
-  const { searchQuery } = useOutletContext();  
+  const { searchQuery, setSearchQuery } = useOutletContext();
   const toastShownRef = useRef(false);
+  const skipSearchEffect = useRef(false);
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+
   const [studentName, setStudentName] = useState("");
   const [books, setBooks] = useState([]);
+  const [filteredBooks, setFilteredBooks] = useState([]);
   const [bookStats, setBookStats] = useState({
     available: 0,
     borrowedByUser: 0,
@@ -102,11 +105,8 @@ function StudentDashboard() {
         ).length;
 
         setBooks(updatedBooks);
-        setBookStats({
-          available,
-          borrowedByUser,
-          overdueByUser,
-        });
+        setFilteredBooks(updatedBooks);
+        setBookStats({ available, borrowedByUser, overdueByUser });
       })
       .catch((err) => {
         console.error("Failed to fetch books", err);
@@ -122,7 +122,7 @@ function StudentDashboard() {
     const student = JSON.parse(localStorage.getItem("student"));
     if (!student || !student._id) return;
 
-    const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
+    const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     setLoading(true);
     axios
@@ -136,7 +136,7 @@ function StudentDashboard() {
         fetchBooks();
       })
       .catch((err) => {
-         console.error("Borrow error", err.response?.data || err);
+        console.error("Borrow error", err.response?.data || err);
         toast.error(err?.response?.data?.message || "Failed to borrow");
       })
       .finally(() => setLoading(false));
@@ -148,7 +148,10 @@ function StudentDashboard() {
 
     const book = books.find((b) => b._id === bookId);
     if (!book || !book.status) return;
-    if (book.borrowedBy?._id !== student._id || book.borrowedByModel !== "Student")
+    if (
+      book.borrowedBy?._id !== student._id ||
+      book.borrowedByModel !== "Student"
+    )
       return;
 
     setLoading(true);
@@ -172,48 +175,78 @@ function StudentDashboard() {
 
   const getBookImage = (imagePath) => `${API_URL}/book/${imagePath}`;
 
+  
+  
+  useEffect(() => {
+    if (skipSearchEffect.current) {
+      skipSearchEffect.current = false;
+      return;
+    }
 
-  let tempFilteredBooks = books.filter((book) => {
-    if (!searchQuery || searchQuery.trim() === "") return true;
+    const lowerQuery = searchQuery.toLowerCase().trim();
 
-    const lowerQuery = searchQuery.toLowerCase();
+    if (!lowerQuery) {
+      setFilteredBooks(books);
+      toastShownRef.current = false;
+      return;
+    }
 
-    let statusText = "available";
-    if (book.status) {
-      if (book.dueDate && new Date(book.dueDate) < new Date()) {
-        statusText = "overdue";
-      } else {
-        statusText = "borrowed";
+    const filtered = books.filter((book) => {
+      let statusText = "available";
+      if (book.status) {
+        if (book.dueDate && new Date(book.dueDate) < new Date()) {
+          statusText = "overdue";
+        } else {
+          statusText = "borrowed";
+        }
       }
+
+      return (
+        book.title.toLowerCase().includes(lowerQuery) ||
+        book.author.toLowerCase().includes(lowerQuery) ||
+        book.genre.toLowerCase().includes(lowerQuery) ||
+        (book.year && book.year.toString().includes(lowerQuery)) ||
+        statusText.includes(lowerQuery)
+      );
+    });
+
+    if (filtered.length > 0) {
+      setFilteredBooks(filtered);
+      toastShownRef.current = false;
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery(""); 
+      }, 300);
+    } else {
+      if (!toastShownRef.current) {
+        toast.warn("No matching books found.", {
+          position: "top-center",
+          autoClose: 3000,
+          pauseOnHover: true,
+        });
+        toastShownRef.current = true;
+
+        setTimeout(() => {
+          skipSearchEffect.current = true;
+          setSearchQuery(""); 
+        }, 1000);
+      }
+
+      setFilteredBooks(books); 
     }
-
-    return (
-      book.title.toLowerCase().includes(lowerQuery) ||
-      book.author.toLowerCase().includes(lowerQuery) ||
-      book.genre.toLowerCase().includes(lowerQuery) ||
-      (book.year && book.year.toString().includes(lowerQuery)) ||
-      statusText.includes(lowerQuery)
-    );
-  });
+  }, [searchQuery, books, setSearchQuery]);
 
 
-  let filteredBooks = tempFilteredBooks;
+  useEffect(() => {
+    return () => {
+      setSearchQuery("");
+      toastShownRef.current = false;
+      skipSearchEffect.current = false;
+    };
+  }, [setSearchQuery]);
 
-  if (searchQuery && tempFilteredBooks.length === 0) {
-    if (!toastShownRef.current) {
-      toast.warn("No matching books found.", {
-        position: "top-center",
-        autoClose: 3000,
-        pauseOnHover: true,
-      });
-      toastShownRef.current = true;
-    }
-    filteredBooks = books; 
-  } else if (tempFilteredBooks.length > 0) {
-    toastShownRef.current = false; 
-  }
-
-
+  
 
   return (
     <Box p={2} mb={2}>
@@ -226,11 +259,11 @@ function StudentDashboard() {
             fontSize: "14px",
             fontWeight: "bold",
             padding: "10px 20px",
-            
+
             "@media (max-width: 700px)": {
-              fontSize: "12px", 
-              padding: "8px 16px", 
-              width: "100%", 
+              fontSize: "12px",
+              padding: "8px 16px",
+              width: "100%",
             },
           }}
         >
@@ -247,7 +280,7 @@ function StudentDashboard() {
         mb={4}
         sx={{
           "@media (max-width: 700px)": {
-            gridTemplateColumns: "1fr", 
+            gridTemplateColumns: "1fr",
           },
         }}
       >
@@ -432,7 +465,7 @@ function StudentDashboard() {
             );
           })}
         </Grid>
-        <ToastContainer position="top-center" autoClose={1500} />
+        <ToastContainer position="top-center" autoClose={2000} />
       </Box>
     </Box>
   );

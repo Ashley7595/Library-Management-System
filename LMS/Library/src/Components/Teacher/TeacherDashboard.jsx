@@ -17,7 +17,7 @@ import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import StatBox from "./Global/StatBox";
 import axios from "axios";
 import { useOutletContext } from "react-router-dom";
-import { toast, ToastContainer } from 'react-toastify'
+import { toast, ToastContainer } from 'react-toastify';
 
 const API_URL = "http://localhost:5001";
 
@@ -26,15 +26,16 @@ function TeacherDashboard() {
   const colors = tokens(theme.palette.mode);
   const [teacherName, setTeacherName] = useState("");
   const [books, setBooks] = useState([]);
+  const [filteredBooks, setFilteredBooks] = useState([]);
   const [bookStats, setBookStats] = useState({
     available: 0,
     borrowed: 0,
-    students: 0, 
+    students: 0,
   });
-  const { searchQuery } = useOutletContext();  
   const toastShownRef = useRef(false);
   const [currentTime, setCurrentTime] = useState(getFormattedTime());
   const [loading, setLoading] = useState(false);
+  const { searchQuery, setSearchQuery } = useOutletContext();
 
   function getFormattedTime() {
     return new Date().toLocaleString("en-IN", {
@@ -83,6 +84,8 @@ function TeacherDashboard() {
         }));
 
         setBooks(updatedBooks);
+        setFilteredBooks(updatedBooks);
+
         const borrowedCount = allBooks.filter(
           (book) =>
             book.status === true &&
@@ -98,14 +101,12 @@ function TeacherDashboard() {
           borrowed: borrowedCount,
           available: availableCount,
         }));
-
       })
       .catch((err) => {
         console.error("Failed to fetch books", err);
       })
       .finally(() => setLoading(false));
   };
-
 
   const fetchStudentsByTeacher = async () => {
     const teacher = JSON.parse(localStorage.getItem("teacher"));
@@ -128,10 +129,77 @@ function TeacherDashboard() {
     }
   };
 
-
   useEffect(() => {
     fetchBooks();
     fetchStudentsByTeacher();
+  }, []);
+
+
+  const skipSearchEffect = useRef(false);
+
+useEffect(() => {
+  if (skipSearchEffect.current) {
+    skipSearchEffect.current = false;
+    return;
+  }
+
+  const lowerQuery = searchQuery.toLowerCase().trim();
+
+  if (!lowerQuery) {
+    setFilteredBooks(books);
+    toastShownRef.current = false;
+    return;
+  }
+
+  const filtered = books.filter((book) => {
+    let statusText = "available";
+    if (book.status) {
+      if (book.dueDate && new Date(book.dueDate) < new Date()) {
+        statusText = "overdue";
+      } else {
+        statusText = "borrowed";
+      }
+    }
+
+    return (
+      book.title.toLowerCase().includes(lowerQuery) ||
+      book.author.toLowerCase().includes(lowerQuery) ||
+      book.genre.toLowerCase().includes(lowerQuery) ||
+      (book.year && book.year.toString().includes(lowerQuery)) ||
+      statusText.includes(lowerQuery)
+    );
+  });
+
+  if (filtered.length > 0) {
+    setFilteredBooks(filtered);
+    toastShownRef.current = false;
+
+    setTimeout(() => {
+      skipSearchEffect.current = true;
+      setSearchQuery(""); 
+    }, 300);
+  } else {
+    if (!toastShownRef.current) {
+      toast.warn("No matching books found.", {
+        position: "top-center",
+        autoClose: 3000,
+        pauseOnHover: true,
+      });
+      toastShownRef.current = true;
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery("");
+      }, 1000);
+    }
+  }
+}, [searchQuery, books]);
+
+
+  useEffect(() => {
+    return () => {
+      setSearchQuery("");
+    };
   }, []);
 
   const handleBorrow = (bookId) => {
@@ -160,7 +228,7 @@ function TeacherDashboard() {
       .post(`${API_URL}/createBorrowRecord`, payload)
       .then(() => {
         toast.success("Book borrowed successfully!");
-        fetchBooks(); 
+        fetchBooks();
       })
       .catch((err) => {
         console.error("Borrow error", err.response?.data || err);
@@ -168,7 +236,6 @@ function TeacherDashboard() {
       })
       .finally(() => setLoading(false));
   };
-
 
   const handleReturn = async (bookId) => {
     const teacher = JSON.parse(localStorage.getItem("teacher"));
@@ -188,8 +255,8 @@ function TeacherDashboard() {
       });
 
       if (res.data.message === "Book returned successfully") {
-        toast.success("Returned successfully!");
-        fetchBooks(); 
+        toast.success("Book returned successfully!");
+        fetchBooks();
       } else {
         toast.error("Failed to return book");
       }
@@ -203,127 +270,53 @@ function TeacherDashboard() {
 
   const getBookImage = (imagePath) => `${API_URL}/book/${imagePath}`;
 
+  return (
+    <Box p={2} mb={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Header title="DASHBOARD" subtitle={`Welcome ${teacherName}`} />
+        <Button
+          sx={{
+            backgroundColor: colors.blueAccent[700],
+            color: colors.grey[100],
+            fontSize: "14px",
+            fontWeight: "bold",
+            padding: "10px 20px",
+            "@media (max-width: 700px)": {
+              fontSize: "12px",
+              padding: "8px 16px",
+              width: "100%",
+            },
+          }}
+        >
+          {currentTime}
+        </Button>
+      </Box>
 
-  let tempFilteredBooks = books.filter((book) => {
-    if (!searchQuery || searchQuery.trim() === "") return true;
-
-    const lowerQuery = searchQuery.toLowerCase();
-
-    let statusText = "available";
-    if (book.status) {
-      if (book.dueDate && new Date(book.dueDate) < new Date()) {
-        statusText = "overdue";
-      } else {
-        statusText = "borrowed";
-      }
-    }
-
-    return (
-      book.title.toLowerCase().includes(lowerQuery) ||
-      book.author.toLowerCase().includes(lowerQuery) ||
-      book.genre.toLowerCase().includes(lowerQuery) ||
-      (book.year && book.year.toString().includes(lowerQuery)) ||
-      statusText.includes(lowerQuery)
-    );
-  });
-
-
-  let filteredBooks = tempFilteredBooks;
-
-  if (searchQuery && tempFilteredBooks.length === 0) {
-    if (!toastShownRef.current) {
-      toast.warn("No matching books found.", {
-        position: "top-center",
-        autoClose: 3000,
-        pauseOnHover: true,
-      });
-      toastShownRef.current = true;
-    }
-    filteredBooks = books;
-  } else if (tempFilteredBooks.length > 0) {
-    toastShownRef.current = false; 
-  }
-
-return (
-  <Box p={2} mb={2}>
-    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-      <Header title="DASHBOARD" subtitle={`Welcome ${teacherName}`} />
-      <Button
+      <Box
+        display="grid"
+        gridTemplateColumns="repeat(12, 1fr)"
+        gridAutoRows="140px"
+        gap="20px"
+        mb={4}
         sx={{
-          backgroundColor: colors.blueAccent[700],
-          color: colors.grey[100],
-          fontSize: "14px",
-          fontWeight: "bold",
-          padding: "10px 20px",
           "@media (max-width: 700px)": {
-            fontSize: "12px",
-            padding: "8px 16px",
-            width: "100%",
+            gridTemplateColumns: "1fr 1fr",
           },
         }}
       >
-        {currentTime}
-      </Button>
-    </Box>
+        <Box gridColumn="span 4" p={2} borderRadius="12px" boxShadow={3} backgroundColor={colors.primary[400]} display="flex" alignItems="center" justifyContent="center">
+          <StatBox title={bookStats.available?.toString() ?? "0"} subtitle="Available Books" icon={<LibraryBooksOutlinedIcon />} />
+        </Box>
 
-    {/* Stats */}
-    <Box
-      display="grid"
-      gridTemplateColumns="repeat(12, 1fr)"
-      gridAutoRows="140px"
-      gap="20px"
-      mb={4}
-      sx={{
-        "@media (max-width: 700px)": {
-          gridTemplateColumns: "1fr 1fr", 
-        },
-      }}
-    >
-      <Box
-        gridColumn="span 4"
-        p={2}
-        borderRadius="12px"
-        boxShadow={3}
-        backgroundColor={theme.palette.mode === "dark" ? colors.primary[700] : colors.primary[400]}
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <StatBox title={bookStats.available?.toString() ?? "0"} subtitle="Available Books" icon={<LibraryBooksOutlinedIcon />}/>
+        <Box gridColumn="span 4" p={2} borderRadius="12px" boxShadow={3} backgroundColor={colors.primary[400]} display="flex" alignItems="center" justifyContent="center">
+          <StatBox title={bookStats.borrowed.toString()} subtitle="Borrowed Books" icon={<MenuBookOutlinedIcon />} />
+        </Box>
+
+        <Box gridColumn="span 4" p={2} borderRadius="12px" boxShadow={3} backgroundColor={colors.primary[400]} display="flex" alignItems="center" justifyContent="center">
+          <StatBox title={bookStats.students.toString()} subtitle="Total Students" icon={<Face6OutlinedIcon />} />
+        </Box>
       </Box>
 
-      <Box
-        gridColumn="span 4"
-        p={2}
-        borderRadius="12px"
-        boxShadow={3}
-        backgroundColor={theme.palette.mode === "dark" ? colors.primary[700] : colors.primary[400]}
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <StatBox title={bookStats.borrowed.toString()} subtitle="Borrowed Books" icon={<MenuBookOutlinedIcon />} />
-      </Box>
-
-      <Box
-        gridColumn="span 4"
-        p={2}
-        borderRadius="12px"
-        boxShadow={3}
-        backgroundColor={theme.palette.mode === "dark" ? colors.primary[700] : colors.primary[400]}
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <StatBox title={bookStats.students.toString()} subtitle="Total Students" icon={<Face6OutlinedIcon />} />
-      </Box>
-    </Box>
-
-    {/* Book List */}
-    <Box>
-      <Typography variant="h3" fontWeight="bold" m={3}>
-        Book List
-      </Typography>
 
       <Grid container spacing={9}>
         {filteredBooks.map((book) => {
@@ -402,7 +395,7 @@ return (
         })}
       </Grid>
 
-      <ToastContainer position="top-center" autoClose={1500} />
+      <ToastContainer position="top-center" autoClose={2000} />
 
       {loading && (
         <Box display="flex" justifyContent="center" mt={4}>
@@ -410,10 +403,7 @@ return (
         </Box>
       )}
     </Box>
-  </Box>
-);
-
-
+  );
 }
 
 export default TeacherDashboard;

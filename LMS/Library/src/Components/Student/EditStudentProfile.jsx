@@ -6,13 +6,14 @@ import {
   InputLabel,
   useTheme,
   Typography,
+  Select,
 } from "@mui/material";
 import { tokens } from "./Theme";
 import Header from "./Global/Header";
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { useNavigate } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify'
+import { useNavigate } from "react-router-dom";
+import { toast, ToastContainer } from "react-toastify";
 
 function EditStudentProfile() {
   const theme = useTheme();
@@ -40,7 +41,8 @@ function EditStudentProfile() {
     const student = JSON.parse(storedStudent);
     const studentId = student._id;
 
-    axios.get(`http://localhost:5001/singleStudent/${studentId}`)
+    axios
+      .get(`http://localhost:5001/singleStudent/${studentId}`)
       .then((result) => {
         const studentData = result.data.data;
         const formattedDob = studentData.dob ? studentData.dob.split("T")[0] : "";
@@ -50,70 +52,86 @@ function EditStudentProfile() {
         });
         setImagePreview(`http://localhost:5001/student/${studentData.image}`);
       })
-      .catch((error) => {
-        console.log(error);
-      });
+      .catch(console.error);
   }, []);
 
-  const validate = () => {
-    const errs = {};
-    const digitsOnly = edit.phone.replace(/[^\d]/g, "");
-    const dobDate = new Date(edit.dob);
+  const validateField = (field, values) => {
+    const errs = { ...errors };
+    const digitsOnly = values.phone.replace(/[^\d]/g, "");
+    const dobDate = new Date(values.dob);
     const today = new Date();
-    const currentYear = today.getFullYear();
-    const age = currentYear - dobDate.getFullYear();
-    const hasHadBirthday =
-      today.getMonth() > dobDate.getMonth() ||
-      (today.getMonth() === dobDate.getMonth() &&
-        today.getDate() >= dobDate.getDate());
-    const actualAge = hasHadBirthday ? age : age - 1;
+    const age =
+      today.getFullYear() -
+      dobDate.getFullYear() -
+      (today.getMonth() < dobDate.getMonth() ||
+      (today.getMonth() === dobDate.getMonth() && today.getDate() < dobDate.getDate())
+        ? 1
+        : 0);
 
-    if (!edit.fname.trim()) errs.fname = "First name is required";
-    if (!edit.lname.trim()) errs.lname = "Last name is required";
-    if (!edit.gender) errs.gender = "Gender is required";
-    if (!edit.username.trim()) errs.username = "Username is required";
-
- 
-    if (!/^\S+@\S+\.\S+$/.test(edit.email)) {
-      errs.email = "Invalid email";
-    }
-
-    if (!/^\d{10}$/.test(digitsOnly)) {
-      errs.phone = "Phone must contain exactly 10 digits";
-    }
-
-    if (!edit.dob) {
-      errs.dob = "Date of birth is required";
-    } else if (actualAge < 5 || actualAge > 18) {
-      errs.dob = "Age must be between 5 and 18 years";
-    }
-
-    const classNum = parseInt(edit.studclass);
-    if (isNaN(classNum) || classNum < 1 || classNum > 12) {
-      errs.studclass = "Class must be between 1 and 12";
-    }
-
-    const roll = parseInt(edit.rollNumber);
-    if (isNaN(roll) || roll < 1 || roll > 1000) {
-      errs.rollNumber = "Roll Number must be 1–1000";
-    }
-
-    if (edit.image instanceof File) {
-      const validTypes = ["image/jpeg", "image/png"];
-      if (!validTypes.includes(edit.image.type)) {
-        errs.image = "Only JPG/PNG allowed";
-      }
-      if (edit.image.size > 2 * 1024 * 1024) {
-        errs.image = "Image must be under 2MB";
-      }
+    switch (field) {
+      case "fname":
+        if (!values.fname.trim()) errs.fname = "First name is required";
+        else if (!/^[A-Za-z\s]+$/.test(values.fname)) errs.fname = "First name must contain only letters";
+        else delete errs.fname;
+        break;
+      case "lname":
+        if (!values.lname.trim()) errs.lname = "Last name is required";
+        else if (!/^[A-Za-z\s]+$/.test(values.lname)) errs.lname = "Last name must contain only letters";
+        else delete errs.lname;
+        break;
+      case "email":
+        if (!values.email.trim()) errs.email = "Email is required";
+        else if (!/^\S+@\S+\.\S+$/.test(values.email)) errs.email = "Invalid email address";
+        else delete errs.email;
+        break;
+      case "phone":
+        if (!digitsOnly) errs.phone = "Phone number is required";
+        else if (!/^\d{10}$/.test(digitsOnly)) errs.phone = "Phone must contain exactly 10 digits";
+        else delete errs.phone;
+        break;
+      case "dob":
+        if (!values.dob) errs.dob = "Date of birth is required";
+        else if (isNaN(dobDate.getTime())) errs.dob = "Invalid date format";
+        else if (age < 5 || age > 18) errs.dob = "Age must be between 5 and 18 years";
+        else delete errs.dob;
+        break;
+      case "studclass":
+        const classNum = parseInt(values.studclass, 10);
+        if (!values.studclass) errs.studclass = "Class is required";
+        else if (isNaN(classNum) || classNum < 1 || classNum > 12) errs.studclass = "Class must be between 1 and 12";
+        else delete errs.studclass;
+        break;
+      case "gender":
+        if (!values.gender.trim()) errs.gender = "Gender is required";
+        else if (!/^[A-Za-z\s]+$/.test(values.gender)) errs.gender = "Gender must contain only letters";
+        else delete errs.gender;
+        break;
+      case "username":
+        if (!values.username.trim()) errs.username = "Username is required";
+        else delete errs.username;
+        break;
+      case "rollNumber":
+        const roll = parseInt(values.rollNumber);
+        if (isNaN(roll) || roll < 1 || roll > 1000) errs.rollNumber = "Roll Number must be 1–1000";
+        else delete errs.rollNumber;
+        break;
+      default:
+        break;
     }
 
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+  };
+
+  const validate = () => {
+    Object.keys(edit).forEach((field) => validateField(field, edit));
+    return Object.keys(errors).length === 0;
   };
 
   const handleUpdate = async () => {
-    if (!validate()) return;
+    if (!validate()) {
+      toast.error("Please fix the errors in the form");
+      return;
+    }
 
     const storedStudent = JSON.parse(localStorage.getItem("student"));
     const studentId = storedStudent._id;
@@ -136,23 +154,49 @@ function EditStudentProfile() {
       );
       toast.success("Profile Updated Successfully");
       localStorage.setItem("student", JSON.stringify(response.data.data));
-        setTimeout(() => navigate('/StudentProfile'), 1500);
+      setTimeout(() => navigate("/StudentProfile"), 1500);
     } catch (error) {
       console.error("Update failed", error);
       toast.error("Failed To Update Profile");
     }
   };
 
+  const handleChange = (id, value) => {
+    let filteredValue = value;
+
+    if (["fname", "lname", "gender"].includes(id)) {
+      filteredValue = value.replace(/[^A-Za-z\s]/g, "");
+    } else if (["phone", "studclass", "rollNumber"].includes(id)) {
+      filteredValue = value.replace(/[^\d]/g, "");
+    } else if (id === "email") {
+      filteredValue = value.replace(/[^a-zA-Z0-9@._+-]/g, "");
+    }
+
+    setEdit((prev) => {
+      const updated = { ...prev, [id]: filteredValue };
+      validateField(id, updated);
+      return updated;
+    });
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      const validTypes = ["image/jpeg", "image/png"];
+      const errs = { ...errors };
+
+      if (!validTypes.includes(file.type)) {
+        errs.image = "Only JPG/PNG allowed";
+      } else if (file.size > 2 * 1024 * 1024) {
+        errs.image = "Image must be under 2MB";
+      } else {
+        delete errs.image;
+      }
+
+      setErrors(errs);
       setEdit({ ...edit, image: file });
       setImagePreview(URL.createObjectURL(file));
     }
-  };
-
-  const handleChange = (id, value) => {
-    setEdit((prev) => ({ ...prev, [id]: value }));
   };
 
   const fields = [
@@ -161,8 +205,9 @@ function EditStudentProfile() {
     { label: "Email", id: "email" },
     { label: "Phone Number", id: "phone" },
     { label: "DOB", id: "dob", type: "date" },
-    { label: "Gender", id: "gender" },
+    { label: "", id: "gender", type: "select", options: ["Male", "Female", "Other"] },
     { label: "Class", id: "studclass" },
+    { label: "Roll Number", id: "rollNumber" },
     { label: "Username", id: "username" },
   ];
 
@@ -181,16 +226,46 @@ function EditStudentProfile() {
           boxShadow={6}
           bgcolor={theme.palette.mode === "dark" ? colors.primary[500] : "#fff"}
         >
-          {fields.map(({ label, id, type = "text" }) => (
+          {fields.map(({ label, id, type = "text", options }) => (
             <FormControl fullWidth margin="normal" key={id}>
-              <InputLabel htmlFor={id}>{label}</InputLabel>
-              <Input
-                id={id}
-                name={id}
-                type={type}
-                value={edit[id] || ""}
-                onChange={(e) => handleChange(id, e.target.value)}
-              />
+              {label && <InputLabel htmlFor={id} shrink>{label}</InputLabel>}
+              {type === "select" && options ? (
+                <Select
+                  native
+                  id={id}
+                  name={id}
+                  value={edit[id] || ""}
+                  onChange={(e) => handleChange(id, e.target.value)}
+                  inputProps={{ id }}
+                  fullWidth
+                  displayEmpty
+                >
+                  <option value="">Select Gender</option>
+                  {options.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <Input
+                  id={id}
+                  name={id}
+                  type={type}
+                  value={edit[id] || ""}
+                  onChange={(e) => handleChange(id, e.target.value)}
+                  onPaste={(e) => {
+                    const pasted = e.clipboardData.getData("text");
+                    if (
+                      (["fname", "lname", "gender"].includes(id) && /[^A-Za-z\s]/.test(pasted)) ||
+                      (["phone", "studclass", "rollNumber"].includes(id) && /[^\d]/.test(pasted)) ||
+                      (id === "email" && /[^a-zA-Z0-9@._+-]/.test(pasted))
+                    ) {
+                      e.preventDefault();
+                    }
+                  }}
+                />
+              )}
               {errors[id] && (
                 <Typography color="error" fontSize="12px" mt={0.5}>
                   {errors[id]}
@@ -247,7 +322,7 @@ function EditStudentProfile() {
           </Box>
         </Box>
       </Box>
-    <ToastContainer />
+      <ToastContainer />
     </Box>
   );
 }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import '../Style/AdminLogin.css';
 import logo from '../../assets/logo.jpg';
 import { toast, ToastContainer } from 'react-toastify';
+import Navbar from '../Common/NavBar'
 
 function Login() {
   const navigate = useNavigate();
@@ -41,7 +42,8 @@ function Login() {
   return (
     <>
       <ToastContainer />
-      <div className='container adminPage py-5 mt-5'>
+      <Navbar />
+      <div className='container adminPage py-5 mt-3'>
         <div className='row align-items-center'>
           <div className='col-lg-7'>
             <img src={logo} alt="Logo" className="img-fluid logoImage" />

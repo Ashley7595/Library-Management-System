@@ -13,12 +13,10 @@ function AddStudent() {
   const currentBackgroundColor = isDarkMode ? primaryColorDark : primaryColorLight;
 
   const fileInputRef = useRef();
-
   const todayDate = new Date().toISOString().split("T")[0];
   const currentYear = new Date().getFullYear();
 
   const [imagePreview, setImagePreview] = useState(null);
-
   const [users, setUsers] = useState({
     fname: "",
     lname: "",
@@ -30,7 +28,7 @@ function AddStudent() {
     rollNumber: "",
     username: "",
     password: "",
-    joinDate: todayDate, 
+    joinDate: todayDate,
     image: "",
   });
 
@@ -38,7 +36,19 @@ function AddStudent() {
 
   const handleInput = (e) => {
     const { name, value, type, checked } = e.target;
-    const val = type === "checkbox" ? checked : value;
+    let val = type === "checkbox" ? checked : value;
+
+    if (["fname", "lname"].includes(name)) {
+      val = val.replace(/[^A-Za-z\s]/g, "");
+    }
+
+    if (name === "phone" || name === "studclass") {
+      val = val.replace(/[^\d]/g, "");
+    }
+
+    if (name === "email") {
+      val = val.replace(/[^a-zA-Z0-9@._+-]/g, "");
+    }
 
     setUsers((prev) => ({ ...prev, [name]: val }));
 
@@ -61,7 +71,8 @@ function AddStudent() {
           const age = currentYear - dobDate.getFullYear();
           const hasHadBirthday =
             new Date().getMonth() > dobDate.getMonth() ||
-            (new Date().getMonth() === dobDate.getMonth() && new Date().getDate() >= dobDate.getDate());
+            (new Date().getMonth() === dobDate.getMonth() &&
+              new Date().getDate() >= dobDate.getDate());
           const actualAge = hasHadBirthday ? age : age - 1;
 
           setErrors((prev) => ({
@@ -75,14 +86,21 @@ function AddStudent() {
         break;
 
       case "studclass":
-        const classNum = parseInt(val);
-        setErrors((prev) => ({
-          ...prev,
-          studclass:
-            classNum >= 1 && classNum <= 12
-              ? ""
-              : "Class must be between 1 and 12",
-        }));
+        if (!/^\d+$/.test(val)) {
+          setErrors((prev) => ({
+            ...prev,
+            studclass: "Only numbers are allowed for class",
+          }));
+        } else {
+          const classNum = parseInt(val, 10);
+          setErrors((prev) => ({
+            ...prev,
+            studclass:
+              classNum >= 1 && classNum <= 12
+                ? ""
+                : "Class must be between 1 and 12",
+          }));
+        }
         break;
 
       case "rollNumber":
@@ -105,13 +123,10 @@ function AddStudent() {
         break;
 
       case "phone":
-        const digitsOnly = val.replace(/[^\d]/g, "");
-        const phoneValid = /^\d{10}$/.test(digitsOnly);
+        const phoneValid = /^\d{10}$/.test(val);
         setErrors((prev) => ({
           ...prev,
-          phone: phoneValid
-            ? ""
-            : "Phone must contain exactly 10 digits (allowed: -, /, ,)",
+          phone: phoneValid ? "" : "Phone must contain exactly 10 digits",
         }));
         break;
 
@@ -166,65 +181,66 @@ function AddStudent() {
     setImagePreview(URL.createObjectURL(file));
   };
 
- const handleSubmit = (e) => {
-  e.preventDefault();
+  const handleSubmit = (e) => {
+    e.preventDefault();
 
-  if (!users.image) {
-    setErrors((prev) => ({ ...prev, image: "Profile image is required" }));
-    alert("Please fill in all fields before submitting.");
-    return;
-  }
-
-  for (let key in users) {
-    if (users[key] === "" || errors[key]) {
-      alert("Please fill in all fields correctly before submitting.");
+    if (!users.image) {
+      setErrors((prev) => ({ ...prev, image: "Profile image is required" }));
+      alert("Please fill in all fields before submitting.");
       return;
     }
-  }
 
-  const teacherId = localStorage.getItem("teacherId");
-  if (!teacherId) {
-    alert("Teacher ID is missing. Please log in again.");
-    return;
-  }
+    for (let key in users) {
+      if (users[key] === "" || errors[key]) {
+        alert("Please fill in all fields correctly before submitting.");
+        return;
+      }
+    }
 
-  const formData = new FormData();
-  Object.entries(users).forEach(([key, value]) => {
-    formData.append(key, value);
-  });
-  formData.append("teacherId", teacherId);
-  axios
-    .post("http://localhost:5001/addStudent", formData)
-    .then(() => {
-      toast.success("Form Submitted Successfully");
-      setUsers({
-        fname: "",
-        lname: "",
-        dob: "",
-        gender: "",
-        email: "",
-        phone: "",
-        studclass: "",
-        rollNumber: "",
-        username: "",
-        password: "",
-        joinDate: todayDate,
-        image: "",
-      });
-      setErrors({});
-      setImagePreview(null);
-      fileInputRef.current.value = null;
-    })
-    .catch((error) => {
-      console.error(error);
-      toast.error("Error in Form Submission");
+    const teacherId = localStorage.getItem("teacherId");
+    if (!teacherId) {
+      alert("Teacher ID is missing. Please log in again.");
+      return;
+    }
+
+    const formData = new FormData();
+    Object.entries(users).forEach(([key, value]) => {
+      formData.append(key, value);
     });
-};
+    formData.append("teacherId", teacherId);
+
+    axios
+      .post("http://localhost:5001/addStudent", formData)
+      .then(() => {
+        toast.success("Form Submitted Successfully");
+        setUsers({
+          fname: "",
+          lname: "",
+          dob: "",
+          gender: "",
+          email: "",
+          phone: "",
+          studclass: "",
+          rollNumber: "",
+          username: "",
+          password: "",
+          joinDate: todayDate,
+          image: "",
+        });
+        setErrors({});
+        setImagePreview(null);
+        fileInputRef.current.value = null;
+      })
+      .catch((error) => {
+        console.error(error);
+        toast.error("Error in Form Submission");
+      });
+  };
 
   return (
     <>
       <ToastContainer />
-      <div className="p-3 mb-2">
+      <div className="p-3 mb-2 mt-4">
         <div className="mb-4 text-center">
           <Header title="Add Student" subtitle="Enter student details below" />
         </div>
@@ -243,10 +259,10 @@ function AddStudent() {
                 { label: "Last Name", id: "lname" },
                 { label: "Date of Birth", id: "dob", type: "date" },
                 {
-                  label: "Gender",
+                  label: "",
                   id: "gender",
                   type: "select",
-                  options: ["Male", "Female"],
+                  options: ["Male", "Female", "Other"],
                 },
                 { label: "Email", id: "email", type: "email" },
                 { label: "Phone Number", id: "phone", type: "tel" },
@@ -255,10 +271,9 @@ function AddStudent() {
                 { label: "Username", id: "username" },
                 { label: "Password", id: "password", type: "password" },
                 { label: "Join Date", id: "joinDate", type: "date" },
-
               ].map(({ label, id, type = "text", options }) => (
                 <div className="col-12 col-sm-6" key={id}>
-                  <div className="form-floating">
+                  <div className={type === "select" ? "" : "form-floating"}>
                     {type === "select" ? (
                       <select
                         className="form-select"
@@ -267,7 +282,7 @@ function AddStudent() {
                         value={users[id]}
                         onChange={handleInput}
                       >
-                        <option value="">Select {label}</option>
+                        <option value="">Select Gender</option>
                         {options.map((opt) => (
                           <option key={opt} value={opt}>
                             {opt}
@@ -286,7 +301,7 @@ function AddStudent() {
                         max={id === "joinDate" ? todayDate : undefined}
                       />
                     )}
-                    <label htmlFor={id}>{label}</label>
+                    {type !== "select" && <label htmlFor={id}>{label}</label>}
                   </div>
                   {errors[id] && (
                     <div className="text-danger mt-1" style={{ fontSize: "0.85em" }}>

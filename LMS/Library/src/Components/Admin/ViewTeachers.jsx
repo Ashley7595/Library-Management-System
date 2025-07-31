@@ -2,31 +2,25 @@ import {
   Box,
   Button,
   useTheme,
-  Menu,
-  MenuItem,
-  TextField,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { tokens } from "./Theme.js";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import Header from "./Global/Header";
 import { toast, ToastContainer } from "react-toastify";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import FilterAltIcon from "@mui/icons-material/FilterAlt";
 
 function ViewTeachers() {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const navigate = useNavigate();
+  const { searchQuery, setSearchQuery } = useOutletContext();
+  const skipSearchEffect = useRef(false);
+  const clearInputFlag = useRef(false);
 
   const [view, setView] = useState([]);
   const [filteredView, setFilteredView] = useState([]);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [filterType, setFilterType] = useState("");
-  const [filterValue, setFilterValue] = useState("");
-
-  const open = Boolean(anchorEl);
 
   const columns = [
     { field: "fname", headerName: "First Name", flex: 1 },
@@ -92,128 +86,77 @@ function ViewTeachers() {
       });
   };
 
-  const handleMenuClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
 
-  const handleMenuSelect = (type) => {
-    setFilterType(type);
-    setFilterValue("");
-    setAnchorEl(null);
-  };
+useEffect(() => {
+  if (skipSearchEffect.current) {
+    skipSearchEffect.current = false;
+    return;
+  }
 
-  const applyFilter = () => {
-    const value = filterValue.toLowerCase().trim();
-    if (!value) {
-      setFilteredView(view);
-      return;
-    }
+  const value = searchQuery.toLowerCase().trim();
 
-    const filtered = view.filter((teacher) => {
-      switch (filterType) {
-        case "name":
-          return (
-            teacher.fname?.toLowerCase().includes(value) ||
-            teacher.lname?.toLowerCase().includes(value)
-          );
-        case "email":
-          return teacher.email?.toLowerCase().includes(value);
-        case "phone":
-          return teacher.phone?.toLowerCase().includes(value);
-        default:
-          return true;
-      }
-    });
-
-    if (filtered.length === 0) {
-      toast.error(`No results found for "${filterValue}". Showing all teachers.`);
-      setFilteredView(view);
-    } else {
-      toast.info(`Filtered by ${filterType}: ${filterValue}`);
-      setFilteredView(filtered);
-    }
-  };
-
-  const clearFilter = () => {
+  if (!value) {
     setFilteredView(view);
-    setFilterType("");
-    setFilterValue("");
-    toast.info("Filter cleared");
-  };
+    return;
+  }
+
+  const filtered = view.filter((teacher) =>
+    teacher.fname?.toLowerCase().includes(value) ||
+    teacher.lname?.toLowerCase().includes(value) ||
+    teacher.email?.toLowerCase().includes(value) ||
+    teacher.phone?.toLowerCase().includes(value)
+  );
+
+  if (filtered.length === 0) {
+    toast.error(`No results found for "${searchQuery}". Showing all teachers.`);
+    setFilteredView(view);
+    clearInputFlag.current = true;
+  } else {
+    setFilteredView(filtered);
+    toast.success(`Showing results for "${searchQuery}"`);
+    clearInputFlag.current = true;
+  }
+
+  if (clearInputFlag.current) {
+    const timeout = setTimeout(() => {
+      skipSearchEffect.current = true;
+      setSearchQuery('');
+      clearInputFlag.current = false;
+    }, 1000); 
+    return () => clearTimeout(timeout);
+  }
+
+}, [searchQuery, view]);
+
+
 
   return (
-  <>
-    <ToastContainer />
-    <Box p={2}>
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        flexWrap="wrap"
-        gap={2}
-        mb={2}
-      >
+    <>
+      <ToastContainer />
+      <Box p={2}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          flexWrap="wrap"
+          gap={2}
+          mb={2}
+        >
+          <Header title="Teachers Data" subtitle="Managing the Teachers Data" />
+        </Box>
 
-        <Header title="Teachers Data" subtitle="Managing the Teachers Data" />
-
-        <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
-          <Button
-            onClick={handleMenuClick}
-            variant="contained"
-            sx={{
-              backgroundColor: colors.blueAccent[700],
-              color: colors.grey[100],
-            }}
-            endIcon={<FilterAltIcon />}
-          >
-            {filterType ? `Filter: ${filterType}` : "Filter"}
-          </Button>
-
-          <Menu anchorEl={anchorEl} open={open} onClose={() => setAnchorEl(null)}>
-            <MenuItem onClick={() => handleMenuSelect("name")}>By Name</MenuItem>
-            <MenuItem onClick={() => handleMenuSelect("email")}>By Email</MenuItem>
-            <MenuItem onClick={() => handleMenuSelect("phone")}>By Phone</MenuItem>
-          </Menu>
-
-          {filterType && (
-            <>
-              <TextField
-                variant="outlined"
-                size="small"
-                label={`Enter ${filterType}`}
-                value={filterValue}
-                onChange={(e) => setFilterValue(e.target.value)}
-              />
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={applyFilter}
-                disabled={!filterValue.trim()}
-              >
-                Apply
-              </Button>
-              <Button variant="outlined" color="secondary" onClick={clearFilter}>
-                Clear
-              </Button>
-            </>
-          )}
+        <Box height="400px">
+          <DataGrid
+            rows={filteredView}
+            columns={columns}
+            getRowId={(row) => row._id}
+            pageSize={5}
+            rowsPerPageOptions={[5, 10]}
+          />
         </Box>
       </Box>
-
-      {/* Data Table */}
-      <Box height="400px">
-        <DataGrid
-          rows={filteredView}
-          columns={columns}
-          getRowId={(row) => row._id}
-          pageSize={5}
-          rowsPerPageOptions={[5, 10]}
-        />
-      </Box>
-    </Box>
-  </>
-);
-
+    </>
+  );
 }
 
 export default ViewTeachers;

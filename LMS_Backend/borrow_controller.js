@@ -4,13 +4,11 @@ const Teacher = require('./teacher_schema');
 const Student = require('./student_schema');
 
 
-
-// Create Borrow Record
 const createBorrowRecord = async (req, res) => {
   try {
     const { bookId, teacherId, studentId, dueDate } = req.body;
 
-    // Validate input
+   
     if (!bookId || !dueDate || (teacherId && studentId) || (!teacherId && !studentId)) {
       return res.status(400).json({ message: "Provide either teacherId or studentId, but not both or neither" });
     }
@@ -19,14 +17,14 @@ const createBorrowRecord = async (req, res) => {
       return res.status(400).json({ message: "Invalid dueDate format" });
     }
 
-    // Check book availability
+    
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ message: "Book not found" });
     if (book.status === true) {
       return res.status(400).json({ message: "Book is already borrowed" });
     }
 
-    // Validate borrower
+  
     let borrower = null;
     let borrowerModel = null;
 
@@ -40,7 +38,17 @@ const createBorrowRecord = async (req, res) => {
       borrowerModel = 'Student';
     }
 
-    // Create borrow record
+    const activeBorrow = await Borrow.findOne({
+      status: "borrowed",
+      ...(teacherId ? { teacherId } : { studentId }),
+    });
+
+    if (activeBorrow) {
+      return res.status(400).json({
+        message: "You already borrowed a book. Return it before borrowing another."
+      });
+    }
+
     const borrowRecord = new Borrow({
       bookId,
       teacherId: teacherId || null,
@@ -50,7 +58,6 @@ const createBorrowRecord = async (req, res) => {
       borrowedDate: new Date(),
     });
 
-    // Update book status
     book.status = true;
     book.borrowedBy = borrower._id;
     book.borrowedByModel = borrowerModel;
@@ -65,6 +72,7 @@ const createBorrowRecord = async (req, res) => {
     res.status(500).json({ message: 'Server error while creating borrow record' });
   }
 };
+
 
 
 
@@ -86,16 +94,10 @@ const getAllBorrowRecords = async (req, res) => {
       .populate('teacherId', 'fname lname')
       .populate('studentId', 'fname lname');
 
-    // 🔁 REPLACE this block:
-    // const currentDate = new Date();
-    // const formattedRecords = borrowRecords.map(...).filter(...);
-
-    // 🔁 WITH THIS UPDATED BLOCK:
     const formattedRecords = borrowRecords.map(record => {
       const currentDate = new Date();
       let statusLabel = record.status;
 
-      // Override status if overdue
       if (record.status === 'borrowed' && new Date(record.dueDate) < currentDate) {
         statusLabel = 'overdue';
       }
@@ -113,7 +115,7 @@ const getAllBorrowRecords = async (req, res) => {
         bookTitle: record.bookId?.title || 'Unknown',
         borrowedDate: record.borrowedDate ? record.borrowedDate.toISOString().slice(0, 10) : null,
         dueDate: record.dueDate ? record.dueDate.toISOString().slice(0, 10) : null,
-        status: statusLabel, // can now be 'overdue'
+        status: statusLabel, 
       };
     }).filter(record => {
       if (!query) return true;
@@ -151,7 +153,6 @@ const updateBorrowStatus = async (req, res) => {
       return res.status(404).json({ message: 'Borrow record not found' });
     }
 
-    // Update status
     borrowRecord.status = status;
 
     if (status === 'returned') {

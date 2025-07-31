@@ -2,37 +2,30 @@ import {
   Box,
   Button,
   useTheme,
-  Menu,
-  MenuItem,
-  TextField,
   useMediaQuery,
   CircularProgress,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { tokens } from "./Theme.js";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import Header from "./Global/Header";
 import { toast, ToastContainer } from "react-toastify";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import FilterAltIcon from "@mui/icons-material/FilterAlt";
 
 function StudentsList() {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const navigate = useNavigate();
+  const { searchQuery, setSearchQuery } = useOutletContext();
 
   const [view, setView] = useState([]);
   const [filteredView, setFilteredView] = useState([]);
-  const [filterType, setFilterType] = useState(""); 
-  const [filterValue, setFilterValue] = useState("");
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [loading, setLoading] = useState(false); 
+  const [loading, setLoading] = useState(false);
+  const [toastShown, setToastShown] = useState(false);
 
-  const open = Boolean(anchorEl);
-
+  const isMounted = useRef(true); 
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTabletScreen = useMediaQuery(theme.breakpoints.between("sm", "md"));
 
   const columns = [
     { field: "fname", headerName: "First Name", flex: 1 },
@@ -44,7 +37,7 @@ function StudentsList() {
       headerName: "Actions",
       flex: 1,
       renderCell: (params) => (
-         <Box display="flex" gap={1} mt={1}>
+        <Box display="flex" gap={1} mt={1}>
           <Button
             size="small"
             variant="contained"
@@ -56,7 +49,6 @@ function StudentsList() {
           >
             View More
           </Button>
-
           <Button
             size="small"
             color="error"
@@ -75,7 +67,7 @@ function StudentsList() {
   ];
 
   useEffect(() => {
-    setLoading(true); 
+    setLoading(true);
     const teacherId = localStorage.getItem("teacherId");
     axios
       .post("http://localhost:5001/viewStudentsByTeacher", { teacherId })
@@ -83,22 +75,78 @@ function StudentsList() {
         const students = result.data.data;
         setView(students);
         setFilteredView(students);
-        setLoading(false); 
+        setLoading(false);
       })
       .catch((error) => {
         console.log(error);
         toast.error("Failed to load students");
-        setLoading(false); 
+        setLoading(false);
       });
+  }, []);
+
+const skipSearchEffect = useRef(false); 
+
+useEffect(() => {
+  if (skipSearchEffect.current) {
+    skipSearchEffect.current = false; 
+    return;
+  }
+
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+
+  if (!trimmedQuery) {
+    setFilteredView(view);
+    setToastShown(false);
+    return;
+  }
+
+  const filtered = view.filter((student) =>
+    student.fname?.toLowerCase().includes(trimmedQuery) ||
+    student.lname?.toLowerCase().includes(trimmedQuery) ||
+    student.studclass?.toLowerCase().includes(trimmedQuery) ||
+    student.rollNumber?.toLowerCase().includes(trimmedQuery)
+  );
+
+  if (filtered.length > 0) {
+    setFilteredView(filtered);
+    setToastShown(false);
+
+    setTimeout(() => {
+      skipSearchEffect.current = true;
+      setSearchQuery("");
+    }, 300);
+  } else {
+    if (!toastShown && isMounted.current) {
+      toast.warn("No students found matching your search.", {
+        position: "top-center",
+        autoClose: 3000,
+        pauseOnHover: true,
+      });
+      setToastShown(true);
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery("");
+      }, 1000);
+    }
+  }
+}, [searchQuery, view]);
+
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      setSearchQuery("");
+    };
   }, []);
 
   const handleDelete = (id) => {
     axios
       .post("http://localhost:5001/deleteStudent", { id })
       .then(() => {
-        const filtered = view.filter((student) => student._id !== id);
-        setView(filtered);
-        setFilteredView(filtered);
+        const updated = view.filter((student) => student._id !== id);
+        setView(updated);
+        setFilteredView(updated);
         toast.success("Deleted Successfully");
       })
       .catch((error) => {
@@ -107,113 +155,11 @@ function StudentsList() {
       });
   };
 
-  const handleMenuClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuSelect = (type) => {
-    setFilterType(type);
-    setFilterValue("");
-    setAnchorEl(null);
-  };
-
-  const applyFilter = () => {
-    const value = filterValue.toLowerCase().trim();
-    if (!value) {
-      setFilteredView(view);
-      return;
-    }
-
-    const filtered = view.filter((student) => {
-      switch (filterType) {
-        case "name":
-          return (
-            student.fname?.toLowerCase().includes(value) ||
-            student.lname?.toLowerCase().includes(value)
-          );
-        case "class":
-          return student.studclass?.toLowerCase().includes(value);
-        case "roll":
-          return student.rollNumber?.toLowerCase().includes(value);
-        default:
-          return true;
-      }
-    });
-
-    if (filtered.length === 0) {
-      toast.error(`No results found for "${filterValue}". Showing all students.`);
-      setFilteredView(view); 
-    } else {
-      setFilteredView(filtered);
-      toast.info(`Filtered by ${filterType}: ${filterValue}`);
-    }
-  };
-
-  const clearFilter = () => {
-    setFilteredView(view);
-    setFilterValue("");
-    setFilterType("");
-    toast.info("Filter cleared");
-  };
-
   return (
     <>
-      <ToastContainer />
+      <ToastContainer position="top-center" autoClose={1500} />
       <Box p={2}>
         <Header title="Students Data" subtitle="Managing the Students Data" />
-
-        <Box
-          mb={2}
-          display="flex"
-          alignItems="center"
-          gap={2}
-          flexDirection={isSmallScreen ? "column" : "row"}
-        >
-          <Button
-            onClick={handleMenuClick}
-            variant="contained"
-            sx={{
-              backgroundColor: colors.blueAccent[700],
-              color: colors.grey[100],
-              width: isSmallScreen ? "100%" : "auto",
-            }}
-            endIcon={<FilterAltIcon />}
-          >
-            {filterType ? `Filter: ${filterType}` : "Select Filter"}
-          </Button>
-
-          <Menu anchorEl={anchorEl} open={open} onClose={() => setAnchorEl(null)}>
-            <MenuItem onClick={() => handleMenuSelect("name")}>By Name</MenuItem>
-            <MenuItem onClick={() => handleMenuSelect("class")}>By Class</MenuItem>
-            <MenuItem onClick={() => handleMenuSelect("roll")}>By Roll Number</MenuItem>
-          </Menu>
-
-          {filterType && (
-            <Box display="flex" gap={2} flexDirection={isSmallScreen ? "column" : "row"} alignItems="center">
-              <TextField
-                variant="outlined"
-                size="small"
-                label={`Enter ${filterType}`}
-                value={filterValue}
-                onChange={(e) => setFilterValue(e.target.value)}
-                fullWidth
-              />
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={applyFilter}
-                disabled={!filterValue}
-              >
-                Apply
-              </Button>
-              <Button variant="outlined" color="secondary" onClick={clearFilter}>
-                Clear
-              </Button>
-            </Box>
-          )}
-        </Box>
-
-        {/* Data Table */}
         <Box
           sx={{
             height: isSmallScreen ? "auto" : "400px",
@@ -223,7 +169,12 @@ function StudentsList() {
           }}
         >
           {loading ? (
-            <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+            <Box
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              height="100%"
+            >
               <CircularProgress />
             </Box>
           ) : (

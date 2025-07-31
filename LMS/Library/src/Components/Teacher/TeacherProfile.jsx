@@ -36,7 +36,7 @@ function TeacherProfile() {
   }
 
   return (
-    <Box p={2}>
+    <Box p={2} mt={5}>
       <Header title="PROFILE" subtitle="Profile Information" />
 
       <Box
@@ -61,7 +61,7 @@ function TeacherProfile() {
             gap: { xs: 3, sm: 3, md: 6 },
           }}
         >
-          {/* Image Section */}
+
           <Box
             flex="1.2"
             display="flex"
@@ -85,7 +85,6 @@ function TeacherProfile() {
             />
           </Box>
 
-          {/* Profile Information Section */}
           <Box
             flex="2"
             display="flex"

@@ -36,7 +36,7 @@ function StudentProfile() {
   }
 
   return (
-    <Box p={2}>
+    <Box p={2} mt={5}>
       <Header title="PROFILE" subtitle="Profile Information" />
 
       <Box

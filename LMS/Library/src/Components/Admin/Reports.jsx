@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef} from "react";
 import axios from "axios";
 import {
   Box,
@@ -14,11 +14,16 @@ import StatBox from "./Global/StatBox";
 import { DataGrid } from "@mui/x-data-grid";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import { toast, ToastContainer } from "react-toastify";
+import { useOutletContext } from "react-router-dom";
 
 function Reports() {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
 
+  const { searchQuery, setSearchQuery } = useOutletContext();
+  const skipSearchEffect = useRef(false);
+  const clearInputFlag = useRef(false);
+  const [filteredView, setFilteredView] = useState([]);
   const [rows, setRows] = useState([]);
   const [filteredRows, setFilteredRows] = useState([]);
   const [stats, setStats] = useState({ borrowed: 0, due: 0, available: 0 });
@@ -43,8 +48,8 @@ function Reports() {
           status === "borrowed"
             ? "#42a5f5"
             : status === "overdue"
-            ? "#ef5350"
-            : "#66bb6a";
+              ? "#ef5350"
+              : "#66bb6a";
 
         return (
           <span
@@ -103,97 +108,56 @@ function Reports() {
       .catch((err) => console.error("Error fetching reports:", err));
   }, []);
 
-  const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
+  
 
-  const handleMenuSelect = (type) => {
-    setFilterType(type);
-    setFilterValue("");
-    setAnchorEl(null);
-  };
 
-  const applyFilter = () => {
-    const value = filterValue.toLowerCase().trim();
-    if (!value) {
-      setFilteredRows(rows);
-      return;
-    }
+  useEffect(() => {
+  if (skipSearchEffect.current) {
+    skipSearchEffect.current = false;
+    return;
+  }
 
-    const filtered = rows.filter((row) => {
-      switch (filterType) {
-        case "borrower":
-          return row.borrowerName.toLowerCase().includes(value);
-        case "title":
-          return row.bookTitle.toLowerCase().includes(value);
-        case "status":
-          return row.status.toLowerCase().includes(value);
-        default:
-          return true;
-      }
-    });
+  const value = searchQuery.toLowerCase().trim();
 
-    if (filtered.length === 0) {
-      toast.error(`No results for "${filterValue}". Showing all.`);
-      setFilteredRows(rows);
-    } else {
-      toast.info(`Filtered by ${filterType}: ${filterValue}`);
-      setFilteredRows(filtered);
-    }
-  };
-
-  const clearFilter = () => {
-    setFilterType("");
-    setFilterValue("");
+  if (!value) {
     setFilteredRows(rows);
-    toast.info("Filter cleared");
-  };
+    return;
+  }
+
+  const filtered = rows.filter((row) =>
+    row.borrowerName.toLowerCase().includes(value) ||
+    row.bookTitle.toLowerCase().includes(value) ||
+    row.status.toLowerCase().includes(value)
+  );
+
+  if (filtered.length === 0) {
+    toast.error(`No results found for "${searchQuery}". Showing all records.`);
+    setFilteredRows(rows);
+    clearInputFlag.current = true;
+  } else {
+    toast.success(`Showing results for "${searchQuery}"`);
+    setFilteredRows(filtered);
+    clearInputFlag.current = true;
+  }
+
+  if (clearInputFlag.current) {
+    const timeout = setTimeout(() => {
+      skipSearchEffect.current = true;
+      setSearchQuery('');
+      clearInputFlag.current = false;
+    }, 1000); 
+    return () => clearTimeout(timeout);
+  }
+}, [searchQuery, rows, setSearchQuery]);
+  
+
+
 
   return (
     <Box p={0} m={0}>
       <ToastContainer />
       <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" px={2} pt={2} gap={2}>
         <Header title="Reports" subtitle="Managing Book Reports" />
-        <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
-          <Button
-            onClick={handleMenuClick}
-            variant="contained"
-            sx={{
-              backgroundColor: colors.blueAccent[700],
-              color: colors.grey[100],
-            }}
-            endIcon={<FilterAltIcon />}
-          >
-            {filterType ? `Filter: ${filterType}` : "Filter"}
-          </Button>
-
-          <Menu anchorEl={anchorEl} open={open} onClose={() => setAnchorEl(null)}>
-            <MenuItem onClick={() => handleMenuSelect("borrower")}>By Borrower</MenuItem>
-            <MenuItem onClick={() => handleMenuSelect("title")}>By Book Title</MenuItem>
-            <MenuItem onClick={() => handleMenuSelect("status")}>By Status</MenuItem>
-          </Menu>
-
-          {filterType && (
-            <>
-              <TextField
-                variant="outlined"
-                size="small"
-                label={`Enter ${filterType}`}
-                value={filterValue}
-                onChange={(e) => setFilterValue(e.target.value)}
-              />
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={applyFilter}
-                disabled={!filterValue.trim()}
-              >
-                Apply
-              </Button>
-              <Button variant="outlined" color="secondary" onClick={clearFilter}>
-                Clear
-              </Button>
-            </>
-          )}
-        </Box>
       </Box>
 
       {/* Stat Boxes */}
@@ -206,7 +170,7 @@ function Reports() {
         mb={2}
         sx={{
           "@media (max-width: 500px)": {
-            gridTemplateColumns: "1fr", 
+            gridTemplateColumns: "1fr",
           },
         }}
       >
@@ -221,7 +185,7 @@ function Reports() {
           boxShadow={2}
           sx={{
             "@media (max-width: 500px)": {
-              gridColumn: "span 1", 
+              gridColumn: "span 1",
             },
           }}
         >
@@ -239,7 +203,7 @@ function Reports() {
           boxShadow={2}
           sx={{
             "@media (max-width: 500px)": {
-              gridColumn: "span 1", 
+              gridColumn: "span 1",
             },
           }}
         >
@@ -257,7 +221,7 @@ function Reports() {
           boxShadow={2}
           sx={{
             "@media (max-width: 500px)": {
-              gridColumn: "span 1", 
+              gridColumn: "span 1",
             },
           }}
         >
@@ -270,7 +234,8 @@ function Reports() {
         display="flex"
         justifyContent="space-between"
         alignItems="center"
-        mt={3}
+        mt={5}
+        mb={4}
         sx={{
           height: "50vh",
           width: "100%",

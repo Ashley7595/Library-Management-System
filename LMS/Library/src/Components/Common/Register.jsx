@@ -43,105 +43,102 @@ function Register() {
 
     const handleInput = (e) => {
         const { name, value, type, checked } = e.target;
-        const val = type === 'checkbox' ? checked : value;
+        let val = type === 'checkbox' ? checked : value;
 
-        setUsers({ ...users, [name]: val });
+        if (["fname", "lname", "subject"].includes(name)) {
+            val = val.replace(/[^A-Za-z\s]/g, "");
+        }
+
+        if (name === "phone") {
+            val = val.replace(/[^0-9-/]/g, "");
+        }
+
+        if (name === "email") {
+            val = val.replace(/[^a-zA-Z0-9@._+-]/g, "");
+        }
+
+        setUsers((prev) => ({ ...prev, [name]: val }));
+
+        let errorMessage = "";
+
         switch (name) {
             case "fname":
             case "lname":
-                setErrors((prev) => ({
-                    ...prev,
-                    [name]: val.trim() === "" ? "This field is required" : ""
-                }));
+                if (val.trim() === "") {
+                    errorMessage = "This field is required";
+                } else if (!/^[A-Za-z\s]+$/.test(val)) {
+                    errorMessage = "Only alphabets allowed";
+                }
                 break;
 
             case "email":
-                const emailPattern = /^\S+@\S+\.\S+$/;
-                setErrors((prev) => ({
-                    ...prev,
-                    email: emailPattern.test(val) ? "" : "Invalid email address"
-                }));
+                if (val.trim() === "") {
+                    errorMessage = "This field is required";
+                } else if (!/^\S+@\S+\.\S+$/.test(val)) {
+                    errorMessage = "Invalid email address";
+                }
                 break;
 
             case "phone":
-                const cleanedPhone = val.replace(/[-/\s]/g, '');
-                const phoneFormatPattern = /^(\d{3}[-/]?\d{3}[-/]?\d{4})$/;
-
-                setErrors((prev) => ({
-                    ...prev,
-                    phone:
-                        cleanedPhone.length !== 10 || !phoneFormatPattern.test(val)
-                            ? "Phone must be in format 123-456-7890 or 123/456/7890"
-                            : ""
-                }));
+                const cleaned = val.replace(/[-/\s]/g, '');
+                if (val.trim() === "") {
+                    errorMessage = "Phone number is required";
+                } else if (!/^(\d{3}[-/]?\d{3}[-/]?\d{4})$/.test(val)) {
+                    errorMessage = "Phone must be in format 123-456-7890 or 123/456/7890";
+                } else if (cleaned.length !== 10) {
+                    errorMessage = "Phone number must be 10 digits";
+                }
                 break;
-
-
 
             case "subject":
-                setErrors((prev) => ({
-                    ...prev,
-                    [name]: val.trim() === "" ? "This field is required" : ""
-                }));
+                if (val.trim() === "") {
+                    errorMessage = "This field is required";
+                } else if (!/^[A-Za-z\s]+$/.test(val)) {
+                    errorMessage = "Only alphabets allowed";
+                }
                 break;
-
-            case "joinDate":
-                setErrors((prev) => ({
-                    ...prev,
-                    joinDate: ""
-                }));
-                break;
-
-
 
             case "username":
-                setErrors((prev) => ({
-                    ...prev,
-                    [name]: val.trim() === "" ? "This field is required" : ""
-                }));
+                errorMessage = val.trim() === "" ? "This field is required" : "";
                 break;
 
             case "password":
-                setErrors((prev) => ({
-                    ...prev,
-                    [name]: val.trim() === ""
-                        ? "This field is required"
-                        : !/(?=.*[A-Z])(?=.*\d).{8,}/.test(val)
-                            ? "Password must be at least 8 characters, include a number and an uppercase letter"
-                            : ""
-                }));
+                if (val.trim() === "") {
+                    errorMessage = "This field is required";
+                } else if (!/(?=.*[A-Z])(?=.*\d).{8,}/.test(val)) {
+                    errorMessage = "Min 8 chars, 1 number, 1 uppercase letter";
+                }
                 break;
 
             case "dob":
-                const dobDate = new Date(val);
-                const dobYear = dobDate.getFullYear();
-                const currentYear = new Date().getFullYear();
-                const age = currentYear - dobYear;
-
-                setErrors((prev) => ({
-                    ...prev,
-                    dob:
-                        val.trim() === ""
-                            ? "This field is required"
-                            : isNaN(dobYear) || dobYear < 1980 || dobYear > 2025
-                                ? "Year must be between 1980 and 2025"
-                                : age < 21
-                                    ? "Minimum age is 21 years"
-                                    : ""
-                }));
+                if (val.trim() === "") {
+                    errorMessage = "This field is required";
+                } else {
+                    const dob = new Date(val);
+                    const age = new Date().getFullYear() - dob.getFullYear();
+                    if (dob.getFullYear() < 1980 || dob.getFullYear() > 2025) {
+                        errorMessage = "Year must be between 1980 and 2025";
+                    } else if (age < 21) {
+                        errorMessage = "Minimum age is 21 years";
+                    }
+                }
                 break;
 
             case "consent":
-                setErrors((prev) => ({
-                    ...prev,
-                    consent: val ? "" : "Consent is required"
-                }));
+                errorMessage = val ? "" : "Consent is required";
                 break;
 
             default:
                 break;
         }
+
+        setErrors((prev) => ({
+            ...prev,
+            [name]: errorMessage
+        }));
     };
+
+
 
     const handleFile = (e) => {
         const file = e.target.files[0];
@@ -309,16 +306,16 @@ function Register() {
                                 {errors.image && <div className="text-danger">{errors.image}</div>}
                             </div>
 
-                            <div className="col-lg-12 mb-3">
+                            <div className="col-lg-12 mb-3 mt-3 consent-box">
                                 <div className="form-check">
-                                    <input className="form-check-input" type="checkbox" name="consent" checked={users.consent} onChange={handleInput} />
-                                    <label className="form-check-label">I consent to having this website store my submitted information.</label>
+                                    <input className="form-check-input visible-checkbox" type="checkbox" name="consent" checked={users.consent} onChange={handleInput} />
+                                    <label className="form-check-label" htmlFor="consent">I consent to having this website store my submitted information.</label>
                                 </div>
                                 {errors.consent && <div className="text-danger">{errors.consent}</div>}
                             </div>
 
                             <div align="center">
-                                <button type="submit" className="btn btn-primary">Submit</button>
+                                <button type="submit" className="btn btn-primary mt-2">Submit</button>
                             </div>
                         </div>
                     </form>

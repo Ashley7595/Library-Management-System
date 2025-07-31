@@ -4,6 +4,7 @@ import '../Style/AdminLogin.css';
 import logo from '../../assets/logo.jpg';
 import { toast, ToastContainer } from 'react-toastify';
 import axios from 'axios';
+import Navbar from '../Common/NavBar'
 
 function StudentLogin() {
   const navigate = useNavigate();
@@ -47,7 +48,8 @@ const handleLogin = async (e) => {
   return (
     <>
       <ToastContainer />
-      <div className='container adminPage py-5 mt-5'>
+      <Navbar/>
+      <div className='container adminPage py-5 mt-3'>
         <div className='row align-items-center'>
           <div className='col-lg-7'>
             <img src={logo} alt="Logo" className="img-fluid logoImage" />

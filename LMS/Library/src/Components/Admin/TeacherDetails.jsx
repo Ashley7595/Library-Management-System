@@ -34,6 +34,7 @@ function TeacherDetails() {
 
   return (
     <Box
+    mt={5}
       p={4}
       display="flex"
       justifyContent="center"

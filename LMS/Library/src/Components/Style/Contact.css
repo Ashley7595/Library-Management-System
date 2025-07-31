@@ -9,3 +9,21 @@ h2.commonTitle {
     font-family: serif;
     letter-spacing: 1px;
 }
+.visible-checkbox {
+  transform: scale(1.5);
+  margin-right: 10px;
+  cursor: pointer;
+  accent-color: #0d6efd; 
+}
+.consent-box {
+  border: 1px solid black;
+  border-radius: 8px;
+  padding: 12px;
+  background-color: #f9f9f9; 
+  gap: 10px;
+}
+.visible-radio {
+  transform: scale(1.3);
+  margin-right: 8px;
+  cursor: pointer;
+}

@@ -8,6 +8,8 @@ import LibraryBooksOutlinedIcon from "@mui/icons-material/LibraryBooksOutlined";
 import BarChart from "./Global/BarChart";
 import StatBox from "./Global/StatBox";
 import axios from 'axios';
+import { toast, ToastContainer } from "react-toastify";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
 function Dashboard() {
   const theme = useTheme();
@@ -19,6 +21,7 @@ function Dashboard() {
   const [bookCount, setBookCount] = useState(0);
   const [genreData, setGenreData] = useState([]);
   const [complaints, setComplaints] = useState([]);
+  const navigate = useNavigate();
 
   function getFormattedTime() {
     return new Date().toLocaleString('en-IN', {
@@ -84,6 +87,24 @@ function Dashboard() {
       });
   }, []);
 
+   const handleDelete = (id) => {
+  if (!window.confirm("Are you sure you want to resolve this complaint?")) return;
+
+  axios
+    .post("http://localhost:5001/deleteComplaint",{id})
+    .then(() => {
+      const updated = complaints.filter((complaint) => complaint._id !== id);
+      setComplaints(updated);
+      toast.success("Complaint resolved successfully");
+    })
+    .catch((error) => {
+      console.error("Error resolving this complaint:", error);
+      toast.error("Error resolving this complaint");
+    });
+};
+
+
+
   return (
     <Box p={2}>
       <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -109,8 +130,8 @@ function Dashboard() {
         mb={4}
         sx={{
           '@media (max-width: 768px)': {
-            gridTemplateColumns: '1fr', 
-            gridAutoRows: 'auto', 
+            gridTemplateColumns: '1fr',
+            gridAutoRows: 'auto',
           },
         }}
       >
@@ -169,6 +190,7 @@ function Dashboard() {
               marginBottom: '10px',
             },
           }}
+          mt={3}
         >
           <Box mt="25px" p="0 30px" display="flex" justifyContent="space-between" alignItems="center">
             <Box>
@@ -183,13 +205,13 @@ function Dashboard() {
 
           <Box
             sx={{
-              height: "300px",  
-              maxHeight: "400px", 
+              height: "300px",
+              maxHeight: "400px",
               px: "10px",
               pb: "10px",
               '@media (max-width: 768px)': {
-                height: "250px",  
-                paddingLeft: "10px",  
+                height: "250px",
+                paddingLeft: "10px",
                 paddingRight: "10px",
               },
             }}
@@ -203,6 +225,7 @@ function Dashboard() {
           gridColumn="span 4"
           gridRow="span 2"
           p={2}
+          mt={3}
           borderRadius="12px"
           boxShadow={3}
           bgcolor={theme.palette.mode === "dark" ? colors.primary[700] : "#ffffff"}
@@ -245,7 +268,7 @@ function Dashboard() {
                 No complaints available.
               </Typography>
             ) : (
-              complaints.map((c, i) => (
+              complaints.map((complaint, i) => (
                 <Box
                   key={i}
                   mb={2}
@@ -256,24 +279,45 @@ function Dashboard() {
                 >
                   <Box display="flex" mb={0.5}>
                     <Typography variant="subtitle2" fontWeight="bold" sx={{ minWidth: "80px" }}>Name:</Typography>
-                    <Typography variant="body2">{c.fname} {c.lname}</Typography>
+                    <Typography variant="body2">{complaint.fname} {complaint.lname}</Typography>
                   </Box>
                   <Box display="flex" mb={0.5}>
                     <Typography variant="subtitle2" fontWeight="bold" sx={{ minWidth: "80px" }}>Email:</Typography>
-                    <Typography variant="body2">{c.email}</Typography>
+                    <Typography variant="body2">{complaint.email}</Typography>
                   </Box>
                   <Box display="flex" mb={0.5}>
                     <Typography variant="subtitle2" fontWeight="bold" sx={{ minWidth: "80px" }}>Subject:</Typography>
-                    <Typography variant="body2">{c.subject}</Typography>
+                    <Typography variant="body2">{complaint.subject}</Typography>
                   </Box>
                   <Box display="flex">
                     <Typography variant="subtitle2" fontWeight="bold" sx={{ minWidth: "80px" }}>Message:</Typography>
-                    <Typography variant="body2">{c.inquiry}</Typography>
+                    <Typography variant="body2">{complaint.inquiry}</Typography>
+                  </Box>
+
+                  <Box display="flex" justifyContent="flex-end" gap={1}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      onClick={() => navigate(`/ViewComplaint/${complaint._id}`)}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="success"
+                      onClick={() => handleDelete(complaint._id)}
+                    >
+                     Resolve
+                    </Button>
                   </Box>
                 </Box>
+
               ))
             )}
           </Box>
+             <ToastContainer position="top-center" autoClose={2000} />
         </Box>
       </Box>
     </Box>

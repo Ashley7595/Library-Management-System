@@ -1,4 +1,13 @@
-import { Box, Typography, useTheme, Card, CardContent, CardActions, Button, Grid } from "@mui/material";
+import {
+  Box,
+  Typography,
+  useTheme,
+  Card,
+  CardContent,
+  CardActions,
+  Button,
+  Grid
+} from "@mui/material";
 import { tokens } from './Theme.js';
 import Header from "./Global/Header";
 import { useNavigate, useOutletContext } from "react-router-dom";
@@ -10,10 +19,16 @@ import { toast, ToastContainer } from 'react-toastify';
 function ViewBooks() {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const { searchQuery, setSearchQuery } = useOutletContext();
+
   const [books, setBooks] = useState([]);
+  const [filteredBooks, setFilteredBooks] = useState([]); 
+  const skipSearchEffect = useRef(false);
+  const clearInputFlag = useRef(false);
   const navigate = useNavigate();
-  const { searchQuery } = useOutletContext();  
-  const toastShownRef = useRef(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const booksPerPage = 8;
+
 
   useEffect(() => {
     axios.get("http://localhost:5001/viewAllBooks")
@@ -23,17 +38,20 @@ function ViewBooks() {
           image: `http://localhost:5001/book/${book.image}`
         }));
         setBooks(booksWithFullImageUrl);
+        setFilteredBooks(booksWithFullImageUrl); 
       })
       .catch((error) => {
         console.log(error);
       });
   }, []);
 
+
   const handleDelete = (id) => {
     axios.post("http://localhost:5001/deleteBook", { id })
       .then(() => {
-        const filtered = books.filter((book) => book._id !== id);
-        setBooks(filtered);
+        const updatedBooks = books.filter((book) => book._id !== id);
+        setBooks(updatedBooks);
+        setFilteredBooks(updatedBooks); 
       })
       .catch((error) => {
         console.log(error);
@@ -41,33 +59,51 @@ function ViewBooks() {
   };
 
 
-  let tempFilteredBooks = books.filter((book) => {
-    if (!searchQuery || searchQuery.trim() === "") return true;
-    const lowerQuery = searchQuery.toLowerCase();
-    return (
-      book.title?.toLowerCase().includes(lowerQuery) ||
-      book.author?.toLowerCase().includes(lowerQuery) ||
-      book.genre?.toLowerCase().includes(lowerQuery) ||
-      book.language?.toLowerCase().includes(lowerQuery) ||
-      book.year?.toString().includes(lowerQuery)
-    );
-  });
-
-
-  let filteredBooks = tempFilteredBooks;
-  if (searchQuery && tempFilteredBooks.length === 0) {
-    if (!toastShownRef.current) {
-      toast.warn("No matching books found.", {
-        position: "top-center",
-        autoClose: 3000,
-        pauseOnHover: true,
-      });
-      toastShownRef.current = true;
+  useEffect(() => {
+    if (skipSearchEffect.current) {
+      skipSearchEffect.current = false;
+      return;
     }
-    filteredBooks = books;
-  } else if (tempFilteredBooks.length > 0) {
-    toastShownRef.current = false;
-  }
+
+    const value = searchQuery.toLowerCase().trim();
+
+    if (!value) {
+      setFilteredBooks(books); 
+      return;
+    }
+
+    const filtered = books.filter((book) =>
+      book.title?.toLowerCase().includes(value) ||
+      book.author?.toLowerCase().includes(value) ||
+      book.genre?.toLowerCase().includes(value) ||
+      book.language?.toLowerCase().includes(value) ||
+      book.year?.toString().toLowerCase().includes(value)
+    );
+
+    if (filtered.length === 0) {
+      toast.error(`No results found for "${searchQuery}". Showing all books.`);
+      setFilteredBooks(books); 
+    } else {
+      toast.success(`Showing results for "${searchQuery}"`);
+      setFilteredBooks(filtered); 
+    }
+
+    clearInputFlag.current = true;
+    const timeout = setTimeout(() => {
+      skipSearchEffect.current = true;
+      setSearchQuery('');
+      clearInputFlag.current = false;
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery, books]);
+
+  const indexOfLastBook = currentPage * booksPerPage;
+  const indexOfFirstBook = indexOfLastBook - booksPerPage;
+  const currentBooks = filteredBooks.slice(indexOfFirstBook, indexOfLastBook);
+
+  const totalPages = Math.ceil(filteredBooks.length / booksPerPage);
+
 
   return (
     <Box p={2}>
@@ -93,7 +129,8 @@ function ViewBooks() {
       </Box>
 
       <Grid container spacing={4}>
-        {filteredBooks.map((book) => (
+
+        {currentBooks.map((book) => (
           <Grid key={book._id} item xs={12} sm={6} md={3} display="flex" justifyContent="center">
             <Card
               sx={{
@@ -161,6 +198,27 @@ function ViewBooks() {
           </Grid>
         ))}
       </Grid>
+
+      <Box display="flex" justifyContent="center" mt={4}>
+        <Button
+          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+          disabled={currentPage === 1}
+          sx={{ mx: 1 }}
+        >
+          Prev
+        </Button>
+        <Typography variant="body1" sx={{ mx: 2 }}>
+          Page {currentPage} of {totalPages}
+        </Typography>
+        <Button
+          onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+          disabled={currentPage === totalPages}
+          sx={{ mx: 1 }}
+        >
+          Next
+        </Button>
+      </Box>
+
     </Box>
   );
 }
