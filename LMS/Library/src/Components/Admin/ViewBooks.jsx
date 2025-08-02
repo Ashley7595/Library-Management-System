@@ -6,7 +6,8 @@ import {
   CardContent,
   CardActions,
   Button,
-  Grid
+  Grid,
+  useMediaQuery,
 } from "@mui/material";
 import { tokens } from './Theme.js';
 import Header from "./Global/Header";
@@ -22,12 +23,29 @@ function ViewBooks() {
   const { searchQuery, setSearchQuery } = useOutletContext();
 
   const [books, setBooks] = useState([]);
-  const [filteredBooks, setFilteredBooks] = useState([]); 
+  const [filteredBooks, setFilteredBooks] = useState([]);
   const skipSearchEffect = useRef(false);
   const clearInputFlag = useRef(false);
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
   const booksPerPage = 8;
+
+
+  const [fromBackButton, setFromBackButton] = useState(false);
+  const [historyPushed, setHistoryPushed] = useState(false);
+  const isMounted = useRef(false);
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
+  const [isFiltered, setIsFiltered] = useState(false);
+  const [toastShown, setToastShown] = useState(false);
+  const toastIdRef = useRef(null);
+  const [filteredView, setFilteredView] = useState([]);
+
+  useEffect(() => {
+    isMounted.current = true; 
+    return () => {
+      isMounted.current = false; 
+    };
+  }, []);
 
 
   useEffect(() => {
@@ -38,7 +56,7 @@ function ViewBooks() {
           image: `http://localhost:5001/book/${book.image}`
         }));
         setBooks(booksWithFullImageUrl);
-        setFilteredBooks(booksWithFullImageUrl); 
+        setFilteredBooks(booksWithFullImageUrl);
       })
       .catch((error) => {
         console.log(error);
@@ -51,7 +69,7 @@ function ViewBooks() {
       .then(() => {
         const updatedBooks = books.filter((book) => book._id !== id);
         setBooks(updatedBooks);
-        setFilteredBooks(updatedBooks); 
+        setFilteredBooks(updatedBooks);
       })
       .catch((error) => {
         console.log(error);
@@ -60,43 +78,144 @@ function ViewBooks() {
 
 
   useEffect(() => {
+    if (!historyPushed) {
+      window.history.pushState({ page: 'view-books' }, '', window.location.href);
+      setHistoryPushed(true);
+    }
+  }, [historyPushed]);
+
+
+  useEffect(() => {
     if (skipSearchEffect.current) {
       skipSearchEffect.current = false;
       return;
     }
 
-    const value = searchQuery.toLowerCase().trim();
+    const trimmedQuery = searchQuery.trim().toLowerCase();
 
-    if (!value) {
-      setFilteredBooks(books); 
+    if (!trimmedQuery) {
+      setFilteredBooks(books);
+      setIsFiltered(false);
+      setToastShown(false);
       return;
     }
 
     const filtered = books.filter((book) =>
-      book.title?.toLowerCase().includes(value) ||
-      book.author?.toLowerCase().includes(value) ||
-      book.genre?.toLowerCase().includes(value) ||
-      book.language?.toLowerCase().includes(value) ||
-      book.year?.toString().toLowerCase().includes(value)
+      book.title?.toLowerCase().includes(trimmedQuery) ||
+      book.author.toLowerCase().includes(trimmedQuery) ||
+      book.genre?.toLowerCase().includes(trimmedQuery) ||
+      book.language?.toLowerCase().includes(trimmedQuery) ||
+      book.year?.toLowerCase().includes(trimmedQuery)
     );
 
-    if (filtered.length === 0) {
-      toast.error(`No results found for "${searchQuery}". Showing all books.`);
-      setFilteredBooks(books); 
+    if (filtered.length > 0) {
+      setFilteredBooks(filtered);
+      setIsFiltered(true);
+      setToastShown(false);
+
+      window.history.pushState({ isSearch: true, query: searchQuery }, '');
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery("");
+      }, 300);
     } else {
-      toast.success(`Showing results for "${searchQuery}"`);
-      setFilteredBooks(filtered); 
+      if (!toastShown && isMounted.current) {
+        toastIdRef.current = toast.warn("No books found matching your search.", {
+          position: "top-center",
+          autoClose: 3000,
+          pauseOnHover: true,
+        });
+        setToastShown(true);
+      }
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery("");
+      }, 1000);
+    }
+  }, [searchQuery, books]);
+
+
+
+  useEffect(() => {
+  const handlePopState = (event) => {
+    if (event.state?.isSearch) {
+      skipSearchEffect.current = true;
+      setFilteredBooks(books);
+      setIsFiltered(false);
+      setSearchQuery("");
+    }
+  };
+
+  window.addEventListener('popstate', handlePopState);
+  return () => window.removeEventListener('popstate', handlePopState);
+}, [books, setSearchQuery]);
+
+useEffect(() => {
+  if (skipSearchEffect.current) {
+    skipSearchEffect.current = false;
+    return;
+  }
+
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+
+  if (toastIdRef.current) {
+    toast.dismiss(toastIdRef.current);
+    toastIdRef.current = null;
+  }
+
+  if (!trimmedQuery) {
+    if (fromBackButton) {
+      setFilteredBooks(books);  
+      setIsFiltered(false);
+      setFromBackButton(false);
+    }
+    return;
+  }
+
+  const filtered = books.filter((book) =>
+    book.title?.toLowerCase().includes(trimmedQuery) ||
+    book.author.toLowerCase().includes(trimmedQuery) ||
+    book.genre?.toLowerCase().includes(trimmedQuery) ||
+    book.language?.toLowerCase().includes(trimmedQuery) ||
+    book.year?.toLowerCase().includes(trimmedQuery)
+  );
+
+  if (filtered.length > 0) {
+    setFilteredBooks(filtered);  
+    setIsFiltered(true);
+    setToastShown(false);
+
+    if (!fromBackButton) {
+      window.history.pushState({
+        isSearch: true,
+        query: searchQuery,
+        filteredIds: filtered.map(s => s._id)
+      }, '', `?search=${searchQuery}`);
     }
 
-    clearInputFlag.current = true;
-    const timeout = setTimeout(() => {
+    setTimeout(() => {
       skipSearchEffect.current = true;
-      setSearchQuery('');
-      clearInputFlag.current = false;
-    }, 1000);
+      setSearchQuery("");
+    }, 300);
+  } else {
+    if (!toastShown && isMounted.current) {
+      toastIdRef.current = toast.warn("No books found matching your search.", {
+        position: "top-center",
+        autoClose: 3000,
+        pauseOnHover: true,
+      });
+      setToastShown(true);
+    }
 
-    return () => clearTimeout(timeout);
-  }, [searchQuery, books]);
+    setTimeout(() => {
+      skipSearchEffect.current = true;
+      setSearchQuery("");
+    }, 1000);
+  }
+}, [searchQuery, books, fromBackButton]);
+
 
   const indexOfLastBook = currentPage * booksPerPage;
   const indexOfFirstBook = indexOfLastBook - booksPerPage;
@@ -113,7 +232,7 @@ function ViewBooks() {
         <Link to="/AddBooks" style={{ textDecoration: 'none' }}>
           <Button
             sx={{
-              backgroundColor: colors.blueAccent[700],
+              backgroundColor: colors.blueAccent[600],
               color: colors.grey[100],
               fontSize: "14px",
               fontWeight: "bold",
@@ -128,7 +247,7 @@ function ViewBooks() {
         </Link>
       </Box>
 
-      <Grid container spacing={4}>
+      <Grid container spacing={9}>
 
         {currentBooks.map((book) => (
           <Grid key={book._id} item xs={12} sm={6} md={3} display="flex" justifyContent="center">
@@ -203,17 +322,48 @@ function ViewBooks() {
         <Button
           onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
           disabled={currentPage === 1}
-          sx={{ mx: 1 }}
+          sx={{
+            mx: 1,
+            color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
+            borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
+            '&:hover': {
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+              borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+            },
+            '&.Mui-disabled': {
+              color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
+              borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)',
+            }
+          }}
+          variant="outlined"
         >
           Prev
         </Button>
-        <Typography variant="body1" sx={{ mx: 2 }}>
+
+        <Typography variant="body1" sx={{
+          mx: 2,
+          color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' 
+        }}>
           Page {currentPage} of {totalPages}
         </Typography>
+
         <Button
           onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
           disabled={currentPage === totalPages}
-          sx={{ mx: 1 }}
+          sx={{
+            mx: 1,
+            color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
+            borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
+            '&:hover': {
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+              borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+            },
+            '&.Mui-disabled': {
+              color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
+              borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)',
+            }
+          }}
+          variant="outlined"
         >
           Next
         </Button>

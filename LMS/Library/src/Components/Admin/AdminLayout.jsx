@@ -1,31 +1,28 @@
 import { Outlet, useLocation } from 'react-router-dom';
-import { ColorModeContext, useMode } from './Theme';
-import { ThemeProvider, CssBaseline, Box, useMediaQuery } from '@mui/material';
+import { ColorModeContext, useMode, tokens } from './Theme';
+import { ThemeProvider, CssBaseline, Box, IconButton } from '@mui/material';
 import SideBar from './Global/SideBar';
 import TopBar from './Global/TopBar';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 
-function AdminLayout() {
+function StudentLayout() {
   const [theme, colorMode] = useMode();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(isSmallScreen);
   const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
+  const colors = tokens(theme.palette.mode);
 
   const handleSearchChange = (value) => {
     setSearchQuery(value);
   };
 
-  useEffect(() => {
-    setIsSidebarCollapsed(isSmallScreen);
-  }, [isSmallScreen]);
-
   const routesWithSearch = ['/ViewTeachers','/ViewStudents','/Books','/Reports'];
-  const showTopBar = routesWithSearch.includes(location.pathname);
+  const showSearch = routesWithSearch.includes(location.pathname);
 
   useEffect(() => {
-    if (location.pathname === '/AdminDashboard') {
-      setSearchQuery('');
+    if (location.pathname === '/StudentDashboard') {
+      setSearchQuery(''); 
     }
   }, [location.pathname]);
 
@@ -33,11 +30,13 @@ function AdminLayout() {
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-          <SideBar
-            isCollapsed={isSidebarCollapsed}
-            setIsCollapsed={setIsSidebarCollapsed}
-          />
+        <Box sx={{ 
+          display: 'flex', 
+          height: '100vh', 
+          overflow: 'hidden',
+          backgroundColor: theme.palette.background.default
+        }}>
+          <SideBar />
           <Box
             component="main"
             sx={{
@@ -46,15 +45,49 @@ function AdminLayout() {
               flexDirection: 'column',
               height: '100vh',
               overflow: 'hidden',
+              backgroundColor: theme.palette.background.default
             }}
           >
-            {showTopBar && (
-              <TopBar
-                onSearchChange={handleSearchChange}
-                searchQuery={searchQuery}
-              />
-            )}
-            <Box sx={{ flex: 1, overflowY: 'auto', padding: 2 }}>
+         
+            <Box 
+              display="flex" 
+              justifyContent="space-between" 
+              alignItems="center"
+              p={3}
+              sx={{
+                backgroundColor: theme.palette.background.default,
+                height: '73px',
+                borderBottom: `1px solid ${theme.palette.divider}`
+              }}
+            >
+              
+              <Box sx={{ 
+                flex: 1,
+                maxWidth: showSearch ? '400px' : '0px',
+                transition: 'max-width 0.3s ease'
+              }}>
+                {showSearch && (
+                  <TopBar onSearchChange={handleSearchChange} />
+                )}
+              </Box>
+              
+              
+              <IconButton onClick={colorMode.toggleColorMode}>
+                {theme.palette.mode === 'dark' ? (
+                  <DarkModeOutlinedIcon />
+                ) : (
+                  <LightModeOutlinedIcon />
+                )}
+              </IconButton>
+            </Box>
+            
+        
+            <Box sx={{ 
+              flex: 1, 
+              overflowY: 'auto', 
+              padding: 2,
+              backgroundColor: theme.palette.background.default
+            }}>
               <Outlet context={{ searchQuery, setSearchQuery }} />
             </Box>
           </Box>
@@ -64,4 +97,4 @@ function AdminLayout() {
   );
 }
 
-export default AdminLayout;
+export default StudentLayout;

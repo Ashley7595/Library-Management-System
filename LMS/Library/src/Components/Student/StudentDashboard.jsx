@@ -16,7 +16,7 @@ import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import LocalLibraryIcon from "@mui/icons-material/LocalLibraryOutlined";
 import StatBox from "./Global/StatBox";
 import axios from "axios";
-import { useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { toast, ToastContainer } from 'react-toastify';
 
 const API_URL = "http://localhost:5001";
@@ -27,6 +27,11 @@ function StudentDashboard() {
   const skipSearchEffect = useRef(false);
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const [historyPushed, setHistoryPushed] = useState(false);
+  const [isFiltered, setIsFiltered] = useState(false);
+  const toastIdRef = useRef(null);
+  const [isMounted, setIsMounted] = useState(false);
+
 
   const [studentName, setStudentName] = useState("");
   const [books, setBooks] = useState([]);
@@ -39,6 +44,11 @@ function StudentDashboard() {
 
   const [currentTime, setCurrentTime] = useState(getFormattedTime());
   const [loading, setLoading] = useState(false);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const booksPerPage = 8;
+  const navigate = useNavigate();
+
 
   function getFormattedTime() {
     return new Date().toLocaleString("en-IN", {
@@ -118,6 +128,14 @@ function StudentDashboard() {
     fetchBooks();
   }, []);
 
+  useEffect(() => {
+    if (!historyPushed) {
+      window.history.pushState({ page: 'student-dashboard' }, '', window.location.href);
+      setHistoryPushed(true);
+    }
+  }, [historyPushed]);
+
+
   const handleBorrow = (bookId) => {
     const student = JSON.parse(localStorage.getItem("student"));
     if (!student || !student._id) return;
@@ -175,8 +193,99 @@ function StudentDashboard() {
 
   const getBookImage = (imagePath) => `${API_URL}/book/${imagePath}`;
 
-  
-  
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
+
+  useEffect(() => {
+    if (skipSearchEffect.current) {
+      skipSearchEffect.current = false;
+      return;
+    }
+    if (toastIdRef.current) {
+      toast.dismiss(toastIdRef.current);
+      toastIdRef.current = null;
+    }
+
+    const lowerQuery = searchQuery.toLowerCase().trim();
+
+    if (!lowerQuery) {
+      setFilteredBooks(books);
+      setIsFiltered(false);
+      toastShownRef.current = false;
+      return;
+    }
+
+    skipSearchEffect.current = false;
+
+    const filtered = books.filter((book) => {
+      let statusText = "available";
+      if (book.status) {
+        if (book.dueDate && new Date(book.dueDate) < new Date()) {
+          statusText = "overdue";
+        } else {
+          statusText = "borrowed";
+        }
+      }
+
+      return (
+        book.title.toLowerCase().includes(lowerQuery) ||
+        book.author.toLowerCase().includes(lowerQuery) ||
+        book.genre.toLowerCase().includes(lowerQuery) ||
+        (book.year && book.year.toString().includes(lowerQuery)) ||
+        statusText.includes(lowerQuery)
+      );
+    });
+
+    if (filtered.length > 0) {
+      setFilteredBooks(filtered);
+      setIsFiltered(true);
+      toastShownRef.current = false;
+      if (toastIdRef.current) {
+        toast.dismiss(toastIdRef.current);
+        toastIdRef.current = null;
+      }
+    } else {
+      if (!toastIdRef.current) {
+        toastIdRef.current = toast.warn("No matching books found.", {
+          position: "top-center",
+          autoClose: 1500,
+          pauseOnHover: true,
+          onClose: () => { toastIdRef.current = null; }
+        });
+      }
+      toastShownRef.current = true;
+      setFilteredBooks(books);
+      setIsFiltered(false);
+    }
+
+
+  }, [searchQuery, books]);
+
+  useEffect(() => {
+    return () => {
+      setSearchQuery("");
+    };
+  }, []);
+
+
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (searchQuery.trim() !== "") {
+        skipSearchEffect.current = true;
+        setSearchQuery('');
+        setIsFiltered(false);
+        window.history.pushState({ page: 'student-dashboard' }, '');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [searchQuery, setSearchQuery]);
+
+
   useEffect(() => {
     if (skipSearchEffect.current) {
       skipSearchEffect.current = false;
@@ -187,6 +296,7 @@ function StudentDashboard() {
 
     if (!lowerQuery) {
       setFilteredBooks(books);
+      setIsFiltered(false);
       toastShownRef.current = false;
       return;
     }
@@ -212,41 +322,28 @@ function StudentDashboard() {
 
     if (filtered.length > 0) {
       setFilteredBooks(filtered);
+      setIsFiltered(true);
       toastShownRef.current = false;
-
-      setTimeout(() => {
-        skipSearchEffect.current = true;
-        setSearchQuery(""); 
-      }, 300);
+      window.history.pushState({ isSearch: true, query: searchQuery }, '');
     } else {
       if (!toastShownRef.current) {
         toast.warn("No matching books found.", {
           position: "top-center",
-          autoClose: 3000,
+          autoClose: 1500,
           pauseOnHover: true,
         });
         toastShownRef.current = true;
-
-        setTimeout(() => {
-          skipSearchEffect.current = true;
-          setSearchQuery(""); 
-        }, 1000);
       }
-
-      setFilteredBooks(books); 
+      setFilteredBooks(books);
+      setIsFiltered(false);
     }
-  }, [searchQuery, books, setSearchQuery]);
+  }, [searchQuery, books]);
 
+  const indexOfLastBook = currentPage * booksPerPage;
+  const indexOfFirstBook = indexOfLastBook - booksPerPage;
+  const currentBooks = filteredBooks.slice(indexOfFirstBook, indexOfLastBook);
 
-  useEffect(() => {
-    return () => {
-      setSearchQuery("");
-      toastShownRef.current = false;
-      skipSearchEffect.current = false;
-    };
-  }, [setSearchQuery]);
-
-  
+  const totalPages = Math.ceil(filteredBooks.length / booksPerPage);
 
   return (
     <Box p={2} mb={2}>
@@ -254,7 +351,7 @@ function StudentDashboard() {
         <Header title="DASHBOARD" subtitle={`Welcome ${studentName}`} />
         <Button
           sx={{
-            backgroundColor: colors.blueAccent[700],
+            backgroundColor: colors.blueAccent[600],
             color: colors.grey[100],
             fontSize: "14px",
             fontWeight: "bold",
@@ -327,7 +424,7 @@ function StudentDashboard() {
         >
           <StatBox
             title={bookStats.borrowedByUser.toString()}
-            subtitle="Borrowed by You"
+            subtitle="Borrowed Books"
             icon={<MenuBookOutlinedIcon />}
           />
         </Box>
@@ -363,7 +460,7 @@ function StudentDashboard() {
           Book List
         </Typography>
         <Grid container spacing={9} >
-          {filteredBooks.map((book) => {
+          {currentBooks.map((book) => {
             const student = JSON.parse(localStorage.getItem("student"));
             const isBorrowed = book.status === true;
             const isCurrentUser =
@@ -465,6 +562,56 @@ function StudentDashboard() {
             );
           })}
         </Grid>
+        <Box display="flex" justifyContent="center" mt={4}>
+          <Button
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            sx={{
+              mx: 1,
+              color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
+              borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
+              '&:hover': {
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+              },
+              '&.Mui-disabled': {
+                color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)',
+              }
+            }}
+            variant="outlined"
+          >
+            Prev
+          </Button>
+
+          <Typography variant="body1" sx={{
+            mx: 2,
+            color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000' 
+          }}>
+            Page {currentPage} of {totalPages}
+          </Typography>
+
+          <Button
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            sx={{
+              mx: 1,
+              color: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
+              borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#000000', 
+              '&:hover': {
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#000000',
+              },
+              '&.Mui-disabled': {
+                color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)',
+              }
+            }}
+            variant="outlined"
+          >
+            Next
+          </Button>
+        </Box>
         <ToastContainer position="top-center" autoClose={2000} />
       </Box>
     </Box>

@@ -23,8 +23,13 @@ function StudentsList() {
   const [filteredView, setFilteredView] = useState([]);
   const [loading, setLoading] = useState(false);
   const [toastShown, setToastShown] = useState(false);
+  const [historyPushed, setHistoryPushed] = useState(false);
+  const [isFiltered, setIsFiltered] = useState(false);
+  const [fromBackButton, setFromBackButton] = useState(false);
 
-  const isMounted = useRef(true); 
+  const skipSearchEffect = useRef(false);
+  const isMounted = useRef(false);
+  const toastIdRef = useRef(null);
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
   const columns = [
@@ -67,6 +72,13 @@ function StudentsList() {
   ];
 
   useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     setLoading(true);
     const teacherId = localStorage.getItem("teacherId");
     axios
@@ -84,61 +96,14 @@ function StudentsList() {
       });
   }, []);
 
-const skipSearchEffect = useRef(false); 
-
-useEffect(() => {
-  if (skipSearchEffect.current) {
-    skipSearchEffect.current = false; 
-    return;
-  }
-
-  const trimmedQuery = searchQuery.trim().toLowerCase();
-
-  if (!trimmedQuery) {
-    setFilteredView(view);
-    setToastShown(false);
-    return;
-  }
-
-  const filtered = view.filter((student) =>
-    student.fname?.toLowerCase().includes(trimmedQuery) ||
-    student.lname?.toLowerCase().includes(trimmedQuery) ||
-    student.studclass?.toLowerCase().includes(trimmedQuery) ||
-    student.rollNumber?.toLowerCase().includes(trimmedQuery)
-  );
-
-  if (filtered.length > 0) {
-    setFilteredView(filtered);
-    setToastShown(false);
-
-    setTimeout(() => {
-      skipSearchEffect.current = true;
-      setSearchQuery("");
-    }, 300);
-  } else {
-    if (!toastShown && isMounted.current) {
-      toast.warn("No students found matching your search.", {
-        position: "top-center",
-        autoClose: 3000,
-        pauseOnHover: true,
-      });
-      setToastShown(true);
-
-      setTimeout(() => {
-        skipSearchEffect.current = true;
-        setSearchQuery("");
-      }, 1000);
-    }
-  }
-}, [searchQuery, view]);
 
 
   useEffect(() => {
-    return () => {
-      isMounted.current = false;
-      setSearchQuery("");
-    };
-  }, []);
+    if (!historyPushed) {
+      window.history.pushState({ page: 'student-list' }, '', window.location.href);
+      setHistoryPushed(true);
+    }
+  }, [historyPushed]);
 
   const handleDelete = (id) => {
     axios
@@ -154,6 +119,133 @@ useEffect(() => {
         toast.error("Error deleting student");
       });
   };
+
+  useEffect(() => {
+    if (skipSearchEffect.current) {
+      skipSearchEffect.current = false;
+      return;
+    }
+
+    const trimmedQuery = searchQuery.trim().toLowerCase();
+
+    if (!trimmedQuery) {
+      setFilteredView(view);
+      setIsFiltered(false);
+      setToastShown(false);
+      return;
+    }
+
+    const filtered = view.filter((student) =>
+      student.fname?.toLowerCase().includes(trimmedQuery) ||
+      student.lname?.toLowerCase().includes(trimmedQuery) ||
+      student.studclass?.toLowerCase().includes(trimmedQuery) ||
+      student.rollNumber?.toLowerCase().includes(trimmedQuery)
+    );
+
+    if (filtered.length > 0) {
+      setFilteredView(filtered);
+      setIsFiltered(true);
+      setToastShown(false);
+
+      window.history.pushState({ isSearch: true, query: searchQuery }, '');
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery("");
+      }, 300);
+    } else {
+      if (!toastShown && isMounted.current) {
+        toastIdRef.current = toast.warn("No students found matching your search.", {
+          position: "top-center",
+          autoClose: 3000,
+          pauseOnHover: true,
+        });
+        setToastShown(true);
+      }
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery("");
+      }, 1000);
+    }
+  }, [searchQuery, view]);
+
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (event.state?.isSearch) {
+        skipSearchEffect.current = true;
+        setFilteredView(view);
+        setIsFiltered(false);
+        setSearchQuery("");
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [view, setSearchQuery]);
+
+    useEffect(() => {
+    if (skipSearchEffect.current) {
+      skipSearchEffect.current = false;
+      return;
+    }
+
+    const trimmedQuery = searchQuery.trim().toLowerCase();
+
+    if (toastIdRef.current) {
+      toast.dismiss(toastIdRef.current);
+      toastIdRef.current = null;
+    }
+
+    if (!trimmedQuery) {
+      if (fromBackButton) {
+        setFilteredView(view);
+        setIsFiltered(false);
+        setFromBackButton(false);
+      }
+      return;
+    }
+
+    const filtered = view.filter((student) =>
+      student.fname?.toLowerCase().includes(trimmedQuery) ||
+      student.lname?.toLowerCase().includes(trimmedQuery) ||
+      student.studclass?.toLowerCase().includes(trimmedQuery) ||
+      student.rollNumber?.toLowerCase().includes(trimmedQuery)
+    );
+
+    if (filtered.length > 0) {
+      setFilteredView(filtered);
+      setIsFiltered(true);
+      setToastShown(false);
+
+      if (!fromBackButton) {
+        window.history.pushState({ 
+          isSearch: true, 
+          query: searchQuery,
+          filteredIds: filtered.map(s => s._id) 
+        }, '');
+      }
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery("");
+      }, 300);
+    } else {
+      if (!toastShown && isMounted.current) {
+        toastIdRef.current = toast.warn("No students found matching your search.", {
+          position: "top-center",
+          autoClose: 3000,
+          pauseOnHover: true,
+        });
+        setToastShown(true);
+      }
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery("");
+      }, 1000);
+    }
+  }, [searchQuery, view, fromBackButton]);
 
   return (
     <>

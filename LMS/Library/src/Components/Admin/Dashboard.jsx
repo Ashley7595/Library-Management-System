@@ -87,21 +87,21 @@ function Dashboard() {
       });
   }, []);
 
-   const handleDelete = (id) => {
-  if (!window.confirm("Are you sure you want to resolve this complaint?")) return;
+  const handleDelete = (id) => {
+    if (!window.confirm("Are you sure you want to resolve this complaint?")) return;
 
-  axios
-    .post("http://localhost:5001/deleteComplaint",{id})
-    .then(() => {
-      const updated = complaints.filter((complaint) => complaint._id !== id);
-      setComplaints(updated);
-      toast.success("Complaint resolved successfully");
-    })
-    .catch((error) => {
-      console.error("Error resolving this complaint:", error);
-      toast.error("Error resolving this complaint");
-    });
-};
+    axios
+      .post("http://localhost:5001/deleteComplaint", { id })
+      .then(() => {
+        const updated = complaints.filter((complaint) => complaint._id !== id);
+        setComplaints(updated);
+        toast.success("Complaint resolved successfully");
+      })
+      .catch((error) => {
+        console.error("Error resolving this complaint:", error);
+        toast.error("Error resolving this complaint");
+      });
+  };
 
 
 
@@ -111,7 +111,7 @@ function Dashboard() {
         <Header title="DASHBOARD" subtitle="Welcome Admin" />
         <Button
           sx={{
-            backgroundColor: colors.blueAccent[700],
+            backgroundColor: colors.blueAccent[600],
             color: colors.grey[100],
             fontSize: "14px",
             fontWeight: "bold",
@@ -177,7 +177,8 @@ function Dashboard() {
           </Box>
         ))}
 
-        {/* Bar Chart */}
+
+
         <Box
           gridColumn="span 8"
           gridRow="span 2"
@@ -186,33 +187,78 @@ function Dashboard() {
           sx={{
             '@media (max-width: 768px)': {
               gridColumn: 'span 12',
-              gridRow: 'span 1',
-              marginBottom: '10px',
+              gridRow: 'span 3',
+              marginBottom: '20px',
+            },
+            '@media (max-width: 480px)': {
+              gridRow: 'span 4', 
             },
           }}
           mt={3}
         >
-          <Box mt="25px" p="0 30px" display="flex" justifyContent="space-between" alignItems="center">
+          
+          <Box
+            mt="15px"
+            p="0 20px"
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            flexWrap="wrap" 
+            sx={{
+              '@media (max-width: 480px)': {
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: '10px',
+                p: '0 15px',
+              }
+            }}
+          >
             <Box>
-              <Typography variant="h5" fontWeight="600" color={colors.grey[100]}>
+              <Typography
+                variant="h5"
+                fontWeight="600"
+                color={colors.grey[100]}
+                sx={{
+                  '@media (max-width: 480px)': {
+                    fontSize: '1.25rem',
+                  },
+                  wordWrap: 'break-word',
+                  whiteSpace: 'normal',
+                }}
+              >
                 Number of Books by Genre
               </Typography>
-              <Typography variant="h3" fontWeight="500" color={colors.greenAccent[500]}>
+              <Typography
+                variant="h3"
+                fontWeight="500"
+                color={colors.greenAccent[500]}
+                sx={{
+                  '@media (max-width: 480px)': {
+                    fontSize: '1.75rem',
+                  },
+                  wordWrap: 'break-word',
+                }}
+              >
                 Total: {bookCount}
               </Typography>
             </Box>
           </Box>
 
+
           <Box
             sx={{
-              height: "300px",
-              maxHeight: "400px",
+              height: "350px",
+              maxHeight: "450px",
               px: "10px",
               pb: "10px",
+              mt: "10px",
               '@media (max-width: 768px)': {
-                height: "250px",
-                paddingLeft: "10px",
-                paddingRight: "10px",
+                height: "375px",
+                px: "5px",
+              },
+              '@media (max-width: 480px)': {
+                height: "300px", 
+                mt: "15px",
               },
             }}
           >
@@ -220,7 +266,7 @@ function Dashboard() {
           </Box>
         </Box>
 
-        {/* Complaints Box */}
+
         <Box
           gridColumn="span 4"
           gridRow="span 2"
@@ -298,7 +344,7 @@ function Dashboard() {
                     <Button
                       size="small"
                       variant="outlined"
-                      color="primary"
+                      color="error"
                       onClick={() => navigate(`/ViewComplaint/${complaint._id}`)}
                     >
                       View
@@ -309,7 +355,7 @@ function Dashboard() {
                       color="success"
                       onClick={() => handleDelete(complaint._id)}
                     >
-                     Resolve
+                      Resolve
                     </Button>
                   </Box>
                 </Box>
@@ -317,7 +363,7 @@ function Dashboard() {
               ))
             )}
           </Box>
-             <ToastContainer position="top-center" autoClose={2000} />
+          <ToastContainer position="top-center" autoClose={2000} />
         </Box>
       </Box>
     </Box>

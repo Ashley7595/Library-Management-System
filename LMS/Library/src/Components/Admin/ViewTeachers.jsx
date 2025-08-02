@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { tokens } from "./Theme.js";
@@ -17,10 +18,27 @@ function ViewTeachers() {
   const navigate = useNavigate();
   const { searchQuery, setSearchQuery } = useOutletContext();
   const skipSearchEffect = useRef(false);
-  const clearInputFlag = useRef(false);
-
+  const toastShownRef = useRef(false);
+  const toastIdRef = useRef(null);
+  const [isFiltered, setIsFiltered] = useState(false);
+  const [historyPushed, setHistoryPushed] = useState(false);
+  const [fromBackButton, setFromBackButton] = useState(false);
+  const [toastShown, setToastShown] = useState(false);
   const [view, setView] = useState([]);
   const [filteredView, setFilteredView] = useState([]);
+
+  
+  const isMounted = useRef(false);
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
+
+   useEffect(() => {
+    isMounted.current = true; 
+    return () => {
+      isMounted.current = false; 
+    };
+  }, []);
+
+  
 
   const columns = [
     { field: "fname", headerName: "First Name", flex: 1 },
@@ -71,6 +89,13 @@ function ViewTeachers() {
       });
   }, []);
 
+    useEffect(() => {
+    if (!historyPushed) {
+      window.history.pushState({ page: 'view-teachers' }, '', window.location.href);
+      setHistoryPushed(true);
+    }
+  }, [historyPushed]);
+
   const handleDelete = (id) => {
     axios
       .post("http://localhost:5001/deleteTeacher", { id })
@@ -87,52 +112,141 @@ function ViewTeachers() {
   };
 
 
-useEffect(() => {
-  if (skipSearchEffect.current) {
-    skipSearchEffect.current = false;
-    return;
-  }
 
-  const value = searchQuery.toLowerCase().trim();
+   useEffect(() => {
+    if (skipSearchEffect.current) {
+      skipSearchEffect.current = false;
+      return;
+    }
 
-  if (!value) {
-    setFilteredView(view);
-    return;
-  }
+    const trimmedQuery = searchQuery.trim().toLowerCase();
 
-  const filtered = view.filter((teacher) =>
-    teacher.fname?.toLowerCase().includes(value) ||
-    teacher.lname?.toLowerCase().includes(value) ||
-    teacher.email?.toLowerCase().includes(value) ||
-    teacher.phone?.toLowerCase().includes(value)
-  );
+    if (!trimmedQuery) {
+      setFilteredView(view);
+      setIsFiltered(false);
+      setToastShown(false);
+      return;
+    }
 
-  if (filtered.length === 0) {
-    toast.error(`No results found for "${searchQuery}". Showing all teachers.`);
-    setFilteredView(view);
-    clearInputFlag.current = true;
-  } else {
-    setFilteredView(filtered);
-    toast.success(`Showing results for "${searchQuery}"`);
-    clearInputFlag.current = true;
-  }
+    const filtered = view.filter((teacher) =>
+      teacher.fname?.toLowerCase().includes(trimmedQuery) ||
+      teacher.lname?.toLowerCase().includes(trimmedQuery) ||
+      teacher.email?.toLowerCase().includes(trimmedQuery) ||
+      teacher.phone?.toLowerCase().includes(trimmedQuery)
+    );
 
-  if (clearInputFlag.current) {
-    const timeout = setTimeout(() => {
-      skipSearchEffect.current = true;
-      setSearchQuery('');
-      clearInputFlag.current = false;
-    }, 1000); 
-    return () => clearTimeout(timeout);
-  }
+    if (filtered.length > 0) {
+      setFilteredView(filtered);
+      setIsFiltered(true);
+      setToastShown(false);
 
-}, [searchQuery, view]);
+      window.history.pushState({ isSearch: true, query: searchQuery }, '');
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery("");
+      }, 300);
+    } else {
+      if (!toastShown && isMounted.current) {
+        toastIdRef.current = toast.warn("No teachers found matching your search.", {
+          position: "top-center",
+          autoClose: 3000,
+          pauseOnHover: true,
+        });
+        setToastShown(true);
+      }
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery("");
+      }, 1000);
+    }
+  }, [searchQuery, view]);
+
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (event.state?.isSearch) {
+        skipSearchEffect.current = true;
+        setFilteredView(view);
+        setIsFiltered(false);
+        setSearchQuery("");
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [view, setSearchQuery]);
+
+    useEffect(() => {
+    if (skipSearchEffect.current) {
+      skipSearchEffect.current = false;
+      return;
+    }
+
+    const trimmedQuery = searchQuery.trim().toLowerCase();
+
+    if (toastIdRef.current) {
+      toast.dismiss(toastIdRef.current);
+      toastIdRef.current = null;
+    }
+
+    if (!trimmedQuery) {
+      if (fromBackButton) {
+        setFilteredView(view);
+        setIsFiltered(false);
+        setFromBackButton(false);
+      }
+      return;
+    }
+
+    const filtered = view.filter((teacher) =>
+      teacher.fname?.toLowerCase().includes(trimmedQuery) ||
+      teacher.lname?.toLowerCase().includes(trimmedQuery) ||
+      teacher.email?.toLowerCase().includes(trimmedQuery) ||
+      teacher.phone?.toLowerCase().includes(trimmedQuery)
+    );
+
+    if (filtered.length > 0) {
+      setFilteredView(filtered);
+      setIsFiltered(true);
+      setToastShown(false);
+
+      if (!fromBackButton) {
+        window.history.pushState({ 
+          isSearch: true, 
+          query: searchQuery,
+          filteredIds: filtered.map(s => s._id) 
+        }, '');
+      }
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery("");
+      }, 300);
+    } else {
+      if (!toastShown && isMounted.current) {
+        toastIdRef.current = toast.warn("No teachers found matching your search.", {
+          position: "top-center",
+          autoClose: 3000,
+          pauseOnHover: true,
+        });
+        setToastShown(true);
+      }
+
+      setTimeout(() => {
+        skipSearchEffect.current = true;
+        setSearchQuery("");
+      }, 1000);
+    }
+  }, [searchQuery, view, fromBackButton]);
+
+
 
 
 
   return (
     <>
-      <ToastContainer />
+    <ToastContainer position="top-center" autoClose={1500} />
       <Box p={2}>
         <Box
           display="flex"

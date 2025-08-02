@@ -2,13 +2,16 @@ import { useState, useRef } from "react";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import Header from "./Global/Header";
+import { useTheme } from '@mui/material';
+import { tokens } from './Theme';
 
 function AddStudent() {
   const primaryColorDark = "#303030";
   const primaryColorLight = "#ffffff";
   const greenAccentColor = "#00c853";
   const greenAccentHoverColor = "#00a142";
-
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
   const isDarkMode = false;
   const currentBackgroundColor = isDarkMode ? primaryColorDark : primaryColorLight;
 
@@ -137,8 +140,8 @@ function AddStudent() {
             val.trim() === ""
               ? "This field is required"
               : !/(?=.*[A-Z])(?=.*\d).{8,}/.test(val)
-              ? "Password must be at least 8 characters, include a number and an uppercase letter"
-              : "",
+                ? "Password must be at least 8 characters, include a number and an uppercase letter"
+                : "",
         }));
         break;
 
@@ -240,7 +243,7 @@ function AddStudent() {
   return (
     <>
       <ToastContainer />
-      <div className="p-3 mb-2 mt-4">
+      <div className="p-3 mb-2">
         <div className="mb-4 text-center">
           <Header title="Add Student" subtitle="Enter student details below" />
         </div>
@@ -248,8 +251,12 @@ function AddStudent() {
         <div
           className="mx-auto p-4 rounded-4 shadow"
           style={{
+            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[700] : '#fff',
+            width: "100%",
             maxWidth: "900px",
-            backgroundColor: currentBackgroundColor,
+            padding: "16px",
+            borderRadius: "16px",
+            boxShadow: "6px 6px 12px rgba(50, 36, 36, 0.2)"
           }}
         >
           <form onSubmit={handleSubmit}>

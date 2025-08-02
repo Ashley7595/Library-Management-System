@@ -107,7 +107,7 @@ function StudentHistory() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', padding: 2 }} >
-      <Box mb={2} mt={5}>
+      <Box mb={2}>
         <Header title="HISTORY" subtitle="Borrowed Book History" />
       </Box>
 

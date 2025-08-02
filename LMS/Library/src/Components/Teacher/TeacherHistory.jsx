@@ -128,7 +128,7 @@ function TeacherHistory() {
   }, []);
 
   return (
-    <Box p={2} mt={5}>
+    <Box p={2}>
       <Box mb={3}>
         <Header title="HISTORY" subtitle="Borrowed Book History" />
       </Box>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef} from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
   Box,
@@ -7,6 +7,7 @@ import {
   Menu,
   MenuItem,
   TextField,
+  useMediaQuery,
 } from "@mui/material";
 import { tokens } from "./Theme.js";
 import Header from "./Global/Header";
@@ -23,15 +24,22 @@ function Reports() {
   const { searchQuery, setSearchQuery } = useOutletContext();
   const skipSearchEffect = useRef(false);
   const clearInputFlag = useRef(false);
-  const [filteredView, setFilteredView] = useState([]);
-  const [rows, setRows] = useState([]);
   const [filteredRows, setFilteredRows] = useState([]);
+  const [rows, setRows] = useState([]);
   const [stats, setStats] = useState({ borrowed: 0, due: 0, available: 0 });
+  const [historyPushed, setHistoryPushed] = useState(false);
+  const isMounted = useRef(false);
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
+  const [isFiltered, setIsFiltered] = useState(false);
+  const [toastShown, setToastShown] = useState(false);
+  const toastIdRef = useRef(null);
 
-  const [filterType, setFilterType] = useState("");
-  const [filterValue, setFilterValue] = useState("");
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
+  useEffect(() => {
+    isMounted.current = true; 
+    return () => {
+      isMounted.current = false; 
+    };
+  }, []);
 
   const columns = [
     { field: "borrowerName", headerName: "Borrower Name", flex: 1 },
@@ -48,8 +56,8 @@ function Reports() {
           status === "borrowed"
             ? "#42a5f5"
             : status === "overdue"
-              ? "#ef5350"
-              : "#66bb6a";
+            ? "#ef5350"
+            : "#66bb6a";
 
         return (
           <span
@@ -93,8 +101,12 @@ function Reports() {
         setRows(formattedRows);
         setFilteredRows(formattedRows);
 
-        const borrowedCount = data.filter((i) => i.status.toLowerCase() === "borrowed").length;
-        const overdueCount = data.filter((i) => i.status.toLowerCase() === "overdue").length;
+        const borrowedCount = data.filter(
+          (i) => i.status.toLowerCase() === "borrowed"
+        ).length;
+        const overdueCount = data.filter(
+          (i) => i.status.toLowerCase() === "overdue"
+        ).length;
 
         axios.get("http://localhost:5001/viewAllBooks").then((r2) => {
           const totalBooks = r2.data.data.length;
@@ -108,50 +120,73 @@ function Reports() {
       .catch((err) => console.error("Error fetching reports:", err));
   }, []);
 
-  
 
 
   useEffect(() => {
+  const handlePopState = (event) => {
+    if (event.state?.isSearch) {
+      setFilteredRows(rows); 
+      setIsFiltered(false); 
+      setSearchQuery(""); 
+    }
+  };
+
+  window.addEventListener('popstate', handlePopState);
+  return () => window.removeEventListener('popstate', handlePopState);
+}, [rows, setSearchQuery]);
+
+useEffect(() => {
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+
   if (skipSearchEffect.current) {
     skipSearchEffect.current = false;
     return;
   }
 
-  const value = searchQuery.toLowerCase().trim();
-
-  if (!value) {
-    setFilteredRows(rows);
+  if (!trimmedQuery) {
+    setFilteredRows(rows); 
+    setIsFiltered(false);
+    setToastShown(false);
     return;
   }
 
-  const filtered = rows.filter((row) =>
-    row.borrowerName.toLowerCase().includes(value) ||
-    row.bookTitle.toLowerCase().includes(value) ||
-    row.status.toLowerCase().includes(value)
+  const filtered = rows.filter(
+    (row) =>
+      row.borrowerName?.toLowerCase().includes(trimmedQuery) ||
+      row.bookTitle?.toLowerCase().includes(trimmedQuery) ||
+      row.status?.toLowerCase().includes(trimmedQuery)
   );
 
-  if (filtered.length === 0) {
-    toast.error(`No results found for "${searchQuery}". Showing all records.`);
-    setFilteredRows(rows);
-    clearInputFlag.current = true;
-  } else {
-    toast.success(`Showing results for "${searchQuery}"`);
+  if (filtered.length > 0) {
     setFilteredRows(filtered);
-    clearInputFlag.current = true;
-  }
+    setIsFiltered(true);
+    setToastShown(false);
 
-  if (clearInputFlag.current) {
-    const timeout = setTimeout(() => {
+    window.history.pushState({ isSearch: true, query: searchQuery }, '', window.location.href);
+
+    setTimeout(() => {
       skipSearchEffect.current = true;
-      setSearchQuery('');
-      clearInputFlag.current = false;
-    }, 1000); 
-    return () => clearTimeout(timeout);
+      setSearchQuery(""); 
+    }, 300);
+  } else {
+    if (!toastShown && isMounted.current) {
+      toastIdRef.current = toast.warn("No reports found matching your search.", {
+        position: "top-center",
+        autoClose: 3000,
+        pauseOnHover: true,
+      });
+      setToastShown(true);
+    }
+
+    setTimeout(() => {
+      skipSearchEffect.current = true;
+      setSearchQuery(""); 
+    }, 1000);
   }
-}, [searchQuery, rows, setSearchQuery]);
+}, [searchQuery, rows]);
+
+
   
-
-
 
   return (
     <Box p={0} m={0}>

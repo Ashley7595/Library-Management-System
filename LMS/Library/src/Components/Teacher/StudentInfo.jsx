@@ -52,7 +52,6 @@ function StudentInfo() {
 
   return (
     <Box
-    mt={5}
       p={{ xs: 2, sm: 4 }}
       display="flex"
       justifyContent="center"
